@@ -19,7 +19,6 @@ abstract class S3Request {
   def contentMd5: String
   def contentType: String
   def canonicalizedResource: String
-  def host: String
   def url: String
   def headers: Map[String, String]
   def body: Option[ByteArrayBuffer]
@@ -58,6 +57,8 @@ abstract class S3Request {
 
   def response(exchange: S3Exchange) = { new S3Response(exchange) }
 
+  def host = { client.config.hostname }
+
 }
 
 abstract class S3AbstractGet extends S3Request {
@@ -76,12 +77,10 @@ abstract class S3AbstractGet extends S3Request {
 
 }
 
-
 class S3Get(val client: S3Client, bucket: String, path: String) extends S3AbstractGet {
   override def canonicalizedResource = {
     "/" + bucket + "/" + path
   }
-  override def host = { client.config.hostname }
   override def url = { "http://" + host + "/" + bucket + "/" + path }
 }
 
@@ -89,8 +88,7 @@ class S3List(val client: S3Client, bucket: String, items: Int, marker: Option[St
   def this(client:S3Client, bucket: String, items: Int) = { this(client, bucket, items, None) }
   def this(client:S3Client, bucket: String, items: Int, marker: String) = { this(client, bucket, items, Some(marker)) }
 
-  override def host = { bucket + ".s3.amazonaws.com"}
-  override def url = { "http://" + host + "/" + "?" + stringArgs }
+  override def url = { "http://" + host + "/" + bucket + "/" + "?" + stringArgs }
 
   def stringArgs = {
     args.map {case (key, value) => key + "=" + encode(value) }.mkString("&")
@@ -110,7 +108,8 @@ class S3List(val client: S3Client, bucket: String, items: Int, marker: Option[St
 }
 
 
-abstract class S3AbstractPut extends S3Request {
+class S3Put(val client: S3Client, bucket: String, path: String, data: String) extends S3Request {
+
   override def verb = "PUT"
   override def contentMd5 = ""
   override def contentType = ""
@@ -118,12 +117,6 @@ abstract class S3AbstractPut extends S3Request {
     Map("Date" -> date, "Authorization" -> authorization)
   }
 
-  def encode(string: String):String = {
-    java.net.URLEncoder.encode(string, "UTF-8")
-  }
-}
-
-class S3Put(val client: S3Client, bucket: String, path: String, data: String) extends S3AbstractPut {
   override def canonicalizedResource = {
     "/" + bucket + "/" + path
   }

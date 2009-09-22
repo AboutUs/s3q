@@ -39,6 +39,10 @@ class S3Client(val config:S3Config) {
 class S3Exchange(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3Request]) extends ContentExchange {
   setMethod(request.verb)
   setURL(request.url)
+  request.body match {
+    case Some(string) => setRequestContent(string)
+    case None => ()
+  }
 
   for ((key, value) <- request.headers) {
     setRequestHeader(key, value)

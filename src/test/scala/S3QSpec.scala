@@ -17,6 +17,10 @@ object S3QSpecification extends Specification  {
     {
       responder(request, response)
     }
+    override def doPut(request: HttpServletRequest, response: HttpServletResponse)
+    {
+      responder(request, response)
+    }
   }
 
   val handler = new org.mortbay.jetty.servlet.ServletHandler
@@ -35,59 +39,105 @@ object S3QSpecification extends Specification  {
   }
 
   Environment.environment = new TestEnvironment
+  "A GET request" should {
+    val bucket = new Bucket("test-bucket", client)
+    "should be successful" in {
+      calling {() =>
+        bucket.get("test-item").data.get must_== "expected result"
+      } withResponse { (request, response) =>
+        request.getMethod must_== "GET"
+        request.getRequestURI must_== "/test-bucket/test-item"
+        request.getHeader("Authorization") must_== "AWS foo:p5KyJTeu/8EYmQqnhOJvz9zS4T4="
+        request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
+        response.getWriter.print("expected result")
+      } call
+    }
 
+    "should retry 3 times when a 503 is received" in {
+      calling {() =>
+        bucket.get("test-item").data.get must_== "expected result"
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.getWriter.print("expected result")
+      } call
+    }
 
-  "should issue a simple GET request" in {
-    calling {() =>
-      val bucket = new Bucket("test-bucket", client)
-      bucket.get("test-item").data.get must_== "expected result"
-    } withResponse { (request, response) =>
-      request.getMethod must_== "GET"
-      request.getRequestURI must_== "/test-bucket/test-item"
-      request.getHeader("Authorization") must_== "AWS foo:p5KyJTeu/8EYmQqnhOJvz9zS4T4="
-      request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
-      response.getWriter.print("expected result")
-    } call
+    "should not retry if it a 404 is received" in {
+      calling {() =>
+        bucket.get("test-item").data must beNone
+      } withResponse { (request, response) =>
+        response.setStatus(404)
+      } call
+    }
+
+    "should throw an error if more than 3 503s are received" in {
+      calling {() =>
+        bucket.get("test-item").data.get must throwAn[S3Exception]
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } call
+
+    }
   }
 
-  "should retry 3 times when a 503 is received" in {
-    calling {() =>
-      val bucket = new Bucket("test-bucket", client)
-      bucket.get("test-item").data.get must_== "expected result"
-    } withResponse { (request, response) =>
-      response.setStatus(503)
-    } withResponse { (request, response) =>
-      response.setStatus(503)
-    } withResponse { (request, response) =>
-      response.getWriter.print("expected result")
-    } call
-  }
-  
-  "should not retry if it a 404 is received" in {
-    calling {() =>
-      val bucket = new Bucket("test-bucket", client)
-      bucket.get("test-item").data must beNone
-    } withResponse { (request, response) =>
-      response.setStatus(404)
-    } call
-  }
+  "A PUT Request" should {
+    val bucket = new Bucket("test-bucket", client)
+    "be successful" in {
+      calling {() =>
+        bucket.put("test-item", "some-data").data must_== Some(null)
+      } withResponse { (request, response) =>
+        request.getMethod must_== "PUT"
+        request.getRequestURI must_== "/test-bucket/test-item"
+        request.getHeader("Authorization") must_== "AWS foo:y2HTbcsUYNKYJNDMwssqioECUIQ="
+        request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
+        response.setStatus(200)
+      } call
+    }
 
-  "should throw an error if more than 3 503s are received" in {
-    calling {() =>
-      val bucket = new Bucket("test-bucket", client)
-      bucket.get("test-item").data.get must throwAn[S3Exception]
-    } withResponse { (request, response) =>
-      response.setStatus(503)
-    } withResponse { (request, response) =>
-      response.setStatus(503)
-    } withResponse { (request, response) =>
-      response.setStatus(503)
-    } withResponse { (request, response) =>
-      response.setStatus(503)
-    } call
+    "send data in the body of the request" in {
+      calling{() =>
+        bucket.put("test-item", "some-data").data
+      } withResponse { (request, response) =>
+        request.getReader.readLine must_== "some-data"
+      } call
+    }
 
+
+    "should retry 3 times when a 503 is received" in {
+      calling {() =>
+        bucket.put("test-item", "some-data").data.get must_== "expected result"
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.getWriter.print("expected result")
+      } call
+    }
+
+    "should throw an error if more than 3 503s are received" in {
+      calling {() =>
+        bucket.put("test-item", "some-data").data.get must throwAn[S3Exception]
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } call
+    }
   }
-
   def calling(requestBlock:() => Unit): ClientExpectation = {
     new ClientExpectation(requestBlock)
   }

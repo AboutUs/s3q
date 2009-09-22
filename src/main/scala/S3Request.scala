@@ -8,6 +8,7 @@ import javax.crypto.Mac
 import org.apache.commons.codec.binary.Base64
 
 import org.mortbay.jetty.client.ContentExchange
+import org.mortbay.io.ByteArrayBuffer
 
 abstract class S3Request {
   val MAX_TRIES = 3
@@ -21,6 +22,7 @@ abstract class S3Request {
   def host: String
   def url: String
   def headers: Map[String, String]
+  def body: Option[ByteArrayBuffer]
 
   def signature: String = {
     return calculateHMAC(stringToSign, client.config.secretAccessKey)
@@ -62,6 +64,8 @@ abstract class S3AbstractGet extends S3Request {
   override def verb = "GET"
   override def contentMd5 = ""
   override def contentType = ""
+  override def body = None
+
   override def headers = {
     Map("Date" -> date, "Authorization" -> authorization)
   }
@@ -69,7 +73,9 @@ abstract class S3AbstractGet extends S3Request {
   def encode(string: String):String = {
     java.net.URLEncoder.encode(string, "UTF-8")
   }
+
 }
+
 
 class S3Get(val client: S3Client, bucket: String, path: String) extends S3AbstractGet {
   override def canonicalizedResource = {
@@ -102,3 +108,27 @@ class S3List(val client: S3Client, bucket: String, items: Int, marker: Option[St
 
   override def response(exchange: S3Exchange) = { new S3ListResponse(exchange) }
 }
+
+
+abstract class S3AbstractPut extends S3Request {
+  override def verb = "PUT"
+  override def contentMd5 = ""
+  override def contentType = ""
+  override def headers = {
+    Map("Date" -> date, "Authorization" -> authorization)
+  }
+
+  def encode(string: String):String = {
+    java.net.URLEncoder.encode(string, "UTF-8")
+  }
+}
+
+class S3Put(val client: S3Client, bucket: String, path: String, data: String) extends S3AbstractPut {
+  override def canonicalizedResource = {
+    "/" + bucket + "/" + path
+  }
+  override def body = {Some(new ByteArrayBuffer(data))}
+  override def host = { client.config.hostname }
+  override def url = { "http://" + host + "/" + bucket + "/" + path }
+}
+

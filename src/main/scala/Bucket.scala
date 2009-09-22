@@ -50,4 +50,7 @@ class Bucket(name: String, client: S3Client) {
     client.execute(new S3Get(client, name, key))
   }
 
+  def put(key: String, data: String) = {
+    client.execute(new S3Put(client, name, key, data))
+  }
 }

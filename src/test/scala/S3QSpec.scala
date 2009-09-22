@@ -40,7 +40,7 @@ object S3QSpecification extends Specification  {
   "should issue a simple GET request" in {
     calling {() =>
       val bucket = new Bucket("test-bucket", client)
-      bucket.get("test-item").data must_== "expected result"
+      bucket.get("test-item").data.get must_== "expected result"
     } withResponse { (request, response) =>
       request.getMethod must_== "GET"
       request.getRequestURI must_== "/test-bucket/test-item"
@@ -53,7 +53,7 @@ object S3QSpecification extends Specification  {
   "should retry 3 times when a 503 is received" in {
     calling {() =>
       val bucket = new Bucket("test-bucket", client)
-      bucket.get("test-item").data must_== "expected result"
+      bucket.get("test-item").data.get must_== "expected result"
     } withResponse { (request, response) =>
       response.setStatus(503)
     } withResponse { (request, response) =>
@@ -62,11 +62,20 @@ object S3QSpecification extends Specification  {
       response.getWriter.print("expected result")
     } call
   }
+  
+  "should not retry if it a 404 is received" in {
+    calling {() =>
+      val bucket = new Bucket("test-bucket", client)
+      bucket.get("test-item").data must beNone
+    } withResponse { (request, response) =>
+      response.setStatus(404)
+    } call
+  }
 
   "should throw an error if more than 3 503s are received" in {
     calling {() =>
       val bucket = new Bucket("test-bucket", client)
-      bucket.get("test-item").data must throwAn[S3Exception]
+      bucket.get("test-item").data.get must throwAn[S3Exception]
     } withResponse { (request, response) =>
       response.setStatus(503)
     } withResponse { (request, response) =>

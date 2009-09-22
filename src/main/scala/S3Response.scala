@@ -2,7 +2,9 @@ package org.s3q
 import scala.xml._
 import scala.xml.parsing._
 
-class S3Exception extends Exception {}
+case class S3Exception(val status: Int, val response:String) extends Exception {
+  override def toString = {"error code " + status + ": " + response}
+}
 
 class S3Response(exchange: S3Exchange) {
   lazy val whenFinished = {
@@ -16,7 +18,7 @@ class S3Response(exchange: S3Exchange) {
         return None
       }
       if(request.retries == 0){
-        throw(new S3Exception)
+        throw(S3Exception(status, whenFinished.getResponseContent))
       } else {
         request.retries -= 1
         return client.execute(request).data

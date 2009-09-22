@@ -20,8 +20,12 @@ abstract class S3Request {
   def contentType: String
   def canonicalizedResource: String
   def url: String
-  def headers: Map[String, String]
   def body: Option[ByteArrayBuffer]
+
+  def headers = {
+    Map("Date" -> date, "Authorization" -> authorization)
+  }
+
 
   def signature: String = {
     return calculateHMAC(stringToSign, client.config.secretAccessKey)
@@ -67,10 +71,6 @@ abstract class S3AbstractGet extends S3Request {
   override def contentType = ""
   override def body = None
 
-  override def headers = {
-    Map("Date" -> date, "Authorization" -> authorization)
-  }
-
   def encode(string: String):String = {
     java.net.URLEncoder.encode(string, "UTF-8")
   }
@@ -109,19 +109,21 @@ class S3List(val client: S3Client, bucket: String, items: Int, marker: Option[St
 
 
 class S3Put(val client: S3Client, bucket: String, path: String, data: String) extends S3Request {
-
   override def verb = "PUT"
-  override def contentMd5 = ""
   override def contentType = ""
   override def headers = {
-    Map("Date" -> date, "Authorization" -> authorization)
+    super.headers + ("Content-Md5" -> contentMd5)
   }
 
   override def canonicalizedResource = {
     "/" + bucket + "/" + path
   }
-  override def body = {Some(new ByteArrayBuffer(data))}
+  override def body = { Some(new ByteArrayBuffer(data)) }
   override def host = { client.config.hostname }
   override def url = { "http://" + host + "/" + bucket + "/" + path }
+
+  override def contentMd5 = {
+    new String(Base64.encodeBase64(org.apache.commons.codec.digest.DigestUtils.md5(data)))
+  }
 }
 

@@ -97,8 +97,9 @@ object S3QSpecification extends Specification  {
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
-        request.getHeader("Authorization") must_== "AWS foo:y2HTbcsUYNKYJNDMwssqioECUIQ="
+        request.getHeader("Authorization") must_== "AWS foo:79H1wpxHvrH5mJfoMi33hgzYupc="
         request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
+        request.getHeader("Content-MD5") must_== "MVaNlMH/BQXRc8prXMPPSQ=="
         response.setStatus(200)
       } call
     }

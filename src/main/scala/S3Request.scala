@@ -21,11 +21,11 @@ abstract class S3Request {
   def headers: Map[String, String]
 
   def signature: String = {
-    return calculateHMAC(stringToSign, client.secretAccessKey)
+    return calculateHMAC(stringToSign, client.config.secretAccessKey)
   }
 
   def authorization: String = {
-    "AWS " + client.accessKeyId + ":" + signature
+    "AWS " + client.config.accessKeyId + ":" + signature
   }
 
   private def canonicalizedAmzHeaders = ""
@@ -73,8 +73,8 @@ class S3Get(val client: S3Client, bucket: String, path: String) extends S3Abstra
   override def canonicalizedResource = {
     "/" + bucket + "/" + path
   }
-  override def host = { bucket + ".s3.amazonaws.com"}
-  override def url = { "http://" + host + "/" + path }
+  override def host = { client.config.hostname }
+  override def url = { "http://" + host + "/" + bucket + "/" + path }
 }
 
 class S3List(val client: S3Client, bucket: String, items: Int, marker: Option[String]) extends S3AbstractGet {

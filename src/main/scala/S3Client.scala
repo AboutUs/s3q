@@ -7,11 +7,14 @@ import org.mortbay.io.Buffer
 
 import java.util.concurrent._
 
+case class S3Config(val accessKeyId: String, val secretAccessKey: String, val maxConcurrency:Int, val hostname:String) {
+  def this(accessKeyId: String, secretAccessKey: String, maxConcurrency:Int) = this(accessKeyId, secretAccessKey, maxConcurrency, "s3.amazonaws.com")
+  def this(accessKeyId: String, secretAccessKey: String) = this(accessKeyId, secretAccessKey, 500)
+}
 
-class S3Client(val secretAccessKey: String, val accessKeyId: String, maxConcurrency: Int) {
-  def this(secretAccessKey: String, accessKeyId: String) = this(secretAccessKey, accessKeyId, 500)
+class S3Client(val config:S3Config) {
 
-  val activeRequests = new ArrayBlockingQueue[S3Request](maxConcurrency)
+  val activeRequests = new ArrayBlockingQueue[S3Request](config.maxConcurrency)
 
   val client = new org.mortbay.jetty.client.HttpClient
   client.setConnectorType(org.mortbay.jetty.client.HttpClient.CONNECTOR_SELECT_CHANNEL)

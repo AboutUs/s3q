@@ -6,9 +6,7 @@ object Environment {
 }
 
 class Environment {
-  def currentDate = {
+  def currentDate:java.util.Date = {
     new java.util.Date(System.currentTimeMillis)
   }
-
-  // def 
 }

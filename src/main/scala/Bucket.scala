@@ -5,7 +5,6 @@ class Bucket(name: String, client: S3Client) {
   val refillWhen = bufferSize / 2
 
   def items = {
-    // var done = false
     val keyIterator = keys.elements
     val buffer = new scala.collection.mutable.ListBuffer[(String, S3Response)]
 

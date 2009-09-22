@@ -10,7 +10,9 @@ import org.apache.commons.codec.binary.Base64
 import org.mortbay.jetty.client.ContentExchange
 
 abstract class S3Request {
+  val MAX_TRIES = 3
   val client:S3Client
+  var retries:Int = MAX_TRIES
 
   def verb: String
   def contentMd5: String

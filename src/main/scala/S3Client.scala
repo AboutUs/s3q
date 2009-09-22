@@ -22,7 +22,7 @@ class S3Client(val config:S3Config) {
   client.start
 
   def execute(request: S3Request): S3Response = {
-    val exchange = new S3Exchange(request, activeRequests)
+    val exchange = new S3Exchange(this, request, activeRequests)
 
     activeRequests.put(request)
     client.send(exchange)
@@ -36,7 +36,7 @@ class S3Client(val config:S3Config) {
 
 }
 
-class S3Exchange(request: S3Request, activeRequests: BlockingQueue[S3Request]) extends ContentExchange {
+class S3Exchange(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3Request]) extends ContentExchange {
   setMethod(request.verb)
   setURL(request.url)
 

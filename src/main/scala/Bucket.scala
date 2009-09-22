@@ -50,8 +50,4 @@ class Bucket(name: String, client: S3Client) {
     client.execute(new S3Get(client, name, key))
   }
 
-  // def get(keys: Iterable[String]): Map[String, S3Response] = {
-  //   keys.map { client.execute(new S3Get(name, _)).get }.foldLeft(Map()) ( _ ++ (S3Get.))
-  // }
-
 }

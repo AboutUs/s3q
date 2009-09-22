@@ -47,7 +47,36 @@ object S3QSpecification extends Specification  {
       request.getHeader("Authorization") must_== "AWS foo:p5KyJTeu/8EYmQqnhOJvz9zS4T4="
       request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
       response.getWriter.print("expected result")
-    }
+    } call
+  }
+
+  "should retry 3 times when a 503 is received" in {
+    calling {() =>
+      val bucket = new Bucket("test-bucket", client)
+      bucket.get("test-item").data must_== "expected result"
+    } withResponse { (request, response) =>
+      response.setStatus(503)
+    } withResponse { (request, response) =>
+      response.setStatus(503)
+    } withResponse { (request, response) =>
+      response.getWriter.print("expected result")
+    } call
+  }
+
+  "should throw an error if more than 3 503s are received" in {
+    calling {() =>
+      val bucket = new Bucket("test-bucket", client)
+      bucket.get("test-item").data must throwAn[S3Exception]
+    } withResponse { (request, response) =>
+      response.setStatus(503)
+    } withResponse { (request, response) =>
+      response.setStatus(503)
+    } withResponse { (request, response) =>
+      response.setStatus(503)
+    } withResponse { (request, response) =>
+      response.setStatus(503)
+    } call
+
   }
 
   def calling(requestBlock:() => Unit): ClientExpectation = {
@@ -56,16 +85,23 @@ object S3QSpecification extends Specification  {
 
   case class ClientExpectation(requestBlock:() => Unit) {
     var responderCaught:Option[Exception] = None
+    val responders:scala.collection.mutable.Queue[Responder] = new scala.collection.mutable.Queue
 
-    def withResponse(expectationBlock: Responder) = {
+    def withResponse(expectationBlock: Responder): ClientExpectation = {
+      responders += expectationBlock
+      this
+    }
 
+    def call {
       responder = (request, response) => {
         try {
+          val expectationBlock = responders.dequeue
           expectationBlock(request, response)
         } catch {
           case e:Exception => responderCaught = Some(e)
         }
       }
+
 
       try {
         requestBlock()

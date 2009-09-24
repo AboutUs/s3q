@@ -11,9 +11,9 @@ import org.mortbay.jetty.client.ContentExchange
 import org.mortbay.io.ByteArrayBuffer
 
 abstract class S3Request {
-  val MAX_TRIES = 3
+  val MAX_ATTEMPTS = 3
   val client:S3Client
-  var retries:Int = MAX_TRIES
+  var attempts:Int = 1
 
   def verb: String
   def contentMd5: String
@@ -62,6 +62,15 @@ abstract class S3Request {
   def response(exchange: S3Exchange) = { new S3Response(exchange) }
 
   def host = { client.config.hostname }
+
+  def incrementAttempts = synchronized {
+    env.sleep((500 * java.lang.Math.pow(2,attempts)).toLong)
+    attempts += 1
+  }
+
+  def isRetriable: Boolean = {
+    synchronized { attempts <= MAX_ATTEMPTS }
+  }
 
 }
 
@@ -119,11 +128,12 @@ class S3Put(val client: S3Client, bucket: String, path: String, data: String) ex
     "/" + bucket + "/" + path
   }
   override def body = { Some(new ByteArrayBuffer(data)) }
-  override def host = { client.config.hostname }
   override def url = { "http://" + host + "/" + bucket + "/" + path }
 
   override def contentMd5 = {
     new String(Base64.encodeBase64(org.apache.commons.codec.digest.DigestUtils.md5(data)))
   }
+
+  override def response(exchange: S3Exchange) = { new S3PutResponse(exchange) }
 }
 

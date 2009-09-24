@@ -27,7 +27,7 @@ class S3Client(val config:S3Config) {
     activeRequests.put(request)
     client.send(exchange)
 
-    request.response(exchange)
+    exchange.response
   }
 
   def execute(request: S3List): S3ListResponse = {
@@ -48,7 +48,11 @@ class S3Exchange(val client: S3Client, val request: S3Request, activeRequests: B
     setRequestHeader(key, value)
   }
 
-  val future = new DefaultCompletableFutureResult(60 * 1000)
+  lazy val response: S3Response = {
+    request.response(this)
+  }
+
+  val future = new DefaultCompletableFutureResult(1 * 1000)
 
   def get: S3Exchange = {
     try {
@@ -78,11 +82,13 @@ class S3Exchange(val client: S3Client, val request: S3Request, activeRequests: B
   override def onResponseComplete {
     future.completeWithResult(this)
     markAsFinished
+    response.verify
   }
 
   override def onException(ex: Throwable) {
     future.completeWithException(this, ex)
     markAsFinished
+/*    response.verify*/
   }
 
   override def onConnectionFailed(ex: Throwable) { onException(ex) }

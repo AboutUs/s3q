@@ -36,6 +36,9 @@ object S3QSpecification extends Specification  {
     override def currentDate: java.util.Date = {
       new java.util.Date(1253576758488L)
     }
+
+    // TODO: set expectations on this
+    override def sleep(time: Long) = {}
   }
 
   Environment.environment = new TestEnvironment
@@ -113,16 +116,22 @@ object S3QSpecification extends Specification  {
     }
 
 
-    "should retry 3 times when a 503 is received" in {
+    "should retry 3 times when a 503 is received, even before #data is called" in {
+      val barrier = new java.util.concurrent.CyclicBarrier(2)
+      var response:S3Response = null
       calling {() =>
-        bucket.put("test-item", "some-data").data.get must_== "expected result"
+        response = bucket.put("test-item", "some-data")
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
         response.getWriter.print("expected result")
+        barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
       } call
+
+      barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
+      response.data.get must_== "expected result"
     }
 
     "should throw an error if more than 3 503s are received" in {
@@ -138,8 +147,8 @@ object S3QSpecification extends Specification  {
         response.setStatus(503)
       } call
     }
-  }
 
+  }
 
   "a list request" should {
     val bucket = new Bucket("test-bucket", client)

@@ -9,4 +9,8 @@ class Environment {
   def currentDate:java.util.Date = {
     new java.util.Date(System.currentTimeMillis)
   }
+
+  def sleep(time: Long) = {
+    Thread.sleep(time)
+  }
 }

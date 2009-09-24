@@ -52,7 +52,7 @@ class S3Exchange(val client: S3Client, val request: S3Request, activeRequests: B
     request.response(this)
   }
 
-  val future = new DefaultCompletableFutureResult(1 * 1000)
+  val future = new DefaultCompletableFutureResult(60 * 1000)
 
   def get: S3Exchange = {
     try {

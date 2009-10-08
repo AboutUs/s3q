@@ -147,7 +147,6 @@ object S3QSpecification extends Specification  {
         response.setStatus(503)
       } call
     }
-
   }
 
   "a list request" should {

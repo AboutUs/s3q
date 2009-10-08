@@ -7,14 +7,17 @@ import org.mortbay.io.Buffer
 
 import java.util.concurrent._
 
-case class S3Config(val accessKeyId: String, val secretAccessKey: String, val maxConcurrency:Int, val hostname:String) {
-  def this(accessKeyId: String, secretAccessKey: String, maxConcurrency:Int) = this(accessKeyId, secretAccessKey, maxConcurrency, "s3.amazonaws.com")
-  def this(accessKeyId: String, secretAccessKey: String) = this(accessKeyId, secretAccessKey, 500)
+case class S3Config(val accessKeyId: String, val secretAccessKey: String,
+  val maxConcurrency:Int, val hostname:String) {
+    def this(accessKeyId: String, secretAccessKey: String, maxConcurrency:Int) =
+      this(accessKeyId, secretAccessKey, maxConcurrency, "s3.amazonaws.com")
+    def this(accessKeyId: String, secretAccessKey: String) =
+      this(accessKeyId, secretAccessKey, 500)
 }
 
 class S3Client(val config:S3Config) {
 
-  val activeRequests = new ArrayBlockingQueue[S3Request](config.maxConcurrency)
+  val activeRequests = new ArrayBlockingQueue[S3Exchange](config.maxConcurrency)
 
   val client = new org.mortbay.jetty.client.HttpClient
   client.setConnectorType(org.mortbay.jetty.client.HttpClient.CONNECTOR_SELECT_CHANNEL)
@@ -24,7 +27,17 @@ class S3Client(val config:S3Config) {
   def execute(request: S3Request): S3Response = {
     val exchange = new S3Exchange(this, request, activeRequests)
 
-    activeRequests.put(request)
+    // println("Queuing request... " +
+    //   activeRequests.remainingCapacity() +
+    //   " slots remaining")
+    if ( activeRequests.remainingCapacity() == 0 ){
+    //  println("Forcing first item off of queue")
+      val ex = activeRequests.poll
+      if(ex != null ) {
+        ex.response.data
+      }
+    }
+    activeRequests.put(exchange)
     client.send(exchange)
 
     exchange.response
@@ -36,7 +49,8 @@ class S3Client(val config:S3Config) {
 
 }
 
-class S3Exchange(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3Request]) extends ContentExchange {
+class S3Exchange(val client: S3Client, val request: S3Request,
+  activeRequests: BlockingQueue[S3Exchange]) extends ContentExchange {
   setMethod(request.verb)
   setURL(request.url)
   request.body match {
@@ -72,7 +86,7 @@ class S3Exchange(val client: S3Client, val request: S3Request, activeRequests: B
   }
 
   def markAsFinished = {
-    activeRequests.remove(request)
+    activeRequests.remove(this)
   }
 
   override def onResponseContent(content: Buffer) {

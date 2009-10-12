@@ -6,6 +6,8 @@ import org.mortbay.jetty.client.ContentExchange
 import org.mortbay.io.Buffer
 
 import java.util.concurrent._
+import net.lag.configgy.Configgy
+import net.lag.logging.Logger
 
 case class S3Config(val accessKeyId: String, val secretAccessKey: String,
   val maxConcurrency:Int, val hostname:String) {
@@ -16,6 +18,7 @@ case class S3Config(val accessKeyId: String, val secretAccessKey: String,
 }
 
 class S3Client(val config:S3Config) {
+  private val log = Logger.get
 
   val activeRequests = new ArrayBlockingQueue[S3Exchange](config.maxConcurrency)
 
@@ -26,12 +29,9 @@ class S3Client(val config:S3Config) {
 
   def execute(request: S3Request): S3Response = {
     val exchange = new S3Exchange(this, request, activeRequests)
-
-    // println("Queuing request... " +
-    //   activeRequests.remainingCapacity() +
-    //   " slots remaining")
+    log.debug("Queuing request... %s slots remaining", activeRequests.remainingCapacity())
     if ( activeRequests.remainingCapacity() == 0 ){
-    //  println("Forcing first item off of queue")
+      log.warning("Forcing first item off of queue")
       val ex = activeRequests.poll
       if(ex != null ) {
         ex.response.data

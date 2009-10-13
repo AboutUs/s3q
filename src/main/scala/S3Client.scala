@@ -9,10 +9,18 @@ import java.util.concurrent._
 import net.lag.configgy.Configgy
 import net.lag.logging.Logger
 
-case class S3Config(val accessKeyId: String, val secretAccessKey: String,
-  val maxConcurrency:Int, val hostname:String) {
-    def this(accessKeyId: String, secretAccessKey: String, maxConcurrency:Int) =
-      this(accessKeyId, secretAccessKey, maxConcurrency, "s3.amazonaws.com")
+case class S3Config(
+  val accessKeyId: String, val secretAccessKey: String,
+  val maxConcurrency:Int, val timeout:Int, val hostname:String
+) {
+    def this(
+      accessKeyId: String, secretAccessKey: String, maxConcurrency:Int, timeout:Int
+    ) = this(accessKeyId, secretAccessKey, maxConcurrency, timeout, "s3.amazonaws.com")
+
+    def this(
+      accessKeyId: String, secretAccessKey: String, maxConcurrency:Int
+    ) = this(accessKeyId, secretAccessKey, maxConcurrency, 6000)
+
     def this(accessKeyId: String, secretAccessKey: String) =
       this(accessKeyId, secretAccessKey, 500)
 }
@@ -66,23 +74,25 @@ class S3Exchange(val client: S3Client, val request: S3Request,
     request.response(this)
   }
 
-  val future = new DefaultCompletableFutureResult(60 * 1000)
+  val future = new DefaultCompletableFutureResult(client.config.timeout)
 
-  def get: S3Exchange = {
+  def status = getResponseStatus
+
+  def get: Either[S3Exchange, Throwable] = {
     try {
       future.await
     }
     catch {
-      case e: FutureTimeoutException => throw new TimeoutException
+      case e: FutureTimeoutException => return Right(new TimeoutException)
     } finally {
       markAsFinished
     }
 
     if (future.exception.isDefined) {
-      future.exception.get match {case (blame, exception) => throw exception}
+      future.exception.get match {case (blame, exception) => return Right(exception)}
     }
 
-    future.result.get.asInstanceOf[S3Exchange]
+    Left(future.result.get.asInstanceOf[S3Exchange])
   }
 
   def markAsFinished = {

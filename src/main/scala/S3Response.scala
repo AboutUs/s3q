@@ -19,27 +19,44 @@ class S3Response(exchange: S3Exchange) {
   lazy val data = getData
 
   private def getData: Option[String] = {
-    // Possibly we should not retry for other response types as well.
-    if(status != 200){
-      if(status == 404){
+    whenFinished match {
+      case Right(e) => retry(e)
+      case Left(exchange) => handleResponse(exchange)
+    }
+  }
+
+  def handleResponse(exchange:S3Exchange): Option[String] = {
+    if(exchange.status != 200){
+      if(exchange.status == 404){
         log.debug("Received 404 response")
         return None
       }
-      if(!request.isRetriable){
-        log.error("Received %s error response: Not Retrying", status)
-        throw(S3Exception(status, whenFinished.getResponseContent))
-      } else {
-        log.error("Received %s error response: Retrying", status)
-        request.incrementAttempts
-        return client.execute(request).data
-      }
+      return retry(exchange)
     }
-    log.debug("Received %s successful response", status)
-    Some(whenFinished.getResponseContent)
+    log.debug("Received %s successful response", exchange.status)
+    Some(exchange.getResponseContent)
   }
 
-  def status: Int = {
-    whenFinished.getResponseStatus
+  def retry(error:Throwable): Option[String] = {
+    if(!request.isRetriable){
+      log.error("Received Throwable %s: Not Retrying", error)
+      throw(error)
+    } else {
+      log.error("Received Throwable %s: Retrying", error)
+      request.incrementAttempts
+      return client.execute(request).data
+    }
+  }
+
+  def retry(exchange:S3Exchange): Option[String] = {
+    if(!request.isRetriable){
+      log.error("Received %s error response: Not Retrying", exchange.status)
+      throw(S3Exception(exchange.status, exchange.getResponseContent))
+    } else {
+      log.error("Received %s error response: Retrying", exchange.status)
+      request.incrementAttempts
+      return client.execute(request).data
+    }
   }
 
   def request: S3Request = exchange.request

@@ -30,7 +30,7 @@ object S3QSpecification extends Specification  {
 
   server.start
 
-  val client = new S3Client(new S3Config("foo", "bar", 100, "localhost:8080"))
+  val client = new S3Client(new S3Config("foo", "bar", 100, 500, "localhost:8080"))
 
   class TestEnvironment extends Environment {
     override def currentDate: java.util.Date = {
@@ -145,6 +145,20 @@ object S3QSpecification extends Specification  {
         response.setStatus(503)
       } withResponse { (request, response) =>
         response.setStatus(503)
+      } call
+    }
+
+    "should retry three times if it receives a timeout" in {
+      calling {() =>
+        bucket.put("test-item", "some-data").data must_== Some("expected result")
+      } withResponse { (request, response) =>
+        Thread sleep 600
+      } withResponse { (request, response) =>
+        Thread sleep 600
+      } withResponse { (request, response) =>
+        Thread sleep 600
+      } withResponse { (request, response) =>
+        response.getWriter.print("expected result")
       } call
     }
   }

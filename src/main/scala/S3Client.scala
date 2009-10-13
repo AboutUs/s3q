@@ -42,7 +42,7 @@ class S3Client(val config:S3Config) {
       log.warning("Forcing first item off of queue")
       val ex = activeRequests.poll
       if(ex != null ) {
-        ex.response.data
+        ex.response.retry(new Exception)
       }
     }
     activeRequests.put(exchange)

@@ -107,6 +107,7 @@ class S3Exchange(val client: S3Client, val request: S3Request,
     future.completeWithResult(this)
     markAsFinished
     response.verify
+    request.callback(response)
   }
 
   override def onException(ex: Throwable) {

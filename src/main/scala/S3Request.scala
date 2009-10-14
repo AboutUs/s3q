@@ -72,6 +72,8 @@ abstract class S3Request {
     synchronized { attempts <= MAX_ATTEMPTS }
   }
 
+  def callback(response: S3Response) = { }
+
 }
 
 abstract class S3AbstractGet extends S3Request {

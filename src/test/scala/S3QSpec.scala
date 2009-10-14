@@ -74,6 +74,21 @@ object S3QSpecification extends Specification  {
       } withResponse { (request, response) =>
         response.setStatus(404)
       } call
+
+      "should call a callback upon completion" in {
+        val barrier = new java.util.concurrent.CyclicBarrier(2)
+        calling {() =>
+          bucket.get("test-item", { (response) =>
+            response.data must_== Some("expected result")
+            barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
+          })
+        } withResponse { (request, response) =>
+          response.getWriter.print("expected result")
+
+        } call
+
+        barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
+      }
     }
 
     "should throw an error if more than 3 503s are received" in {

@@ -21,6 +21,10 @@ object S3QSpecification extends Specification  {
     {
       responder(request, response)
     }
+    override def doDelete(request: HttpServletRequest, response: HttpServletResponse)
+    {
+      responder(request, response)
+    }
   }
 
   val handler = new org.mortbay.jetty.servlet.ServletHandler
@@ -292,6 +296,52 @@ object S3QSpecification extends Specification  {
       } call
     }
 
+  }
+
+  "A DELETE Request" should {
+    val bucket = new Bucket("test-bucket", client)
+    "be successful" in {
+      calling {() =>
+        bucket.delete("test-item").data must_== Some(null)
+      } withResponse { (request, response) =>
+        request.getMethod must_== "DELETE"
+        request.getRequestURI must_== "/test-bucket/test-item"
+        request.getHeader("Authorization") must_== "AWS foo:y89SjNCHD9fBl9E9SNmgvCfozJg="
+        request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
+        response.setStatus(200)
+      } call
+    }
+    "have a valid url" in {
+      val request = new S3Delete(client, "test-bucket", "path")
+      request.url must_== "http://localhost:8080/test-bucket/path"
+    }
+
+    "should retry 3 times when a 503 is received" in {
+      calling {() =>
+        bucket.delete("test-item").data.get must_== "expected result"
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.getWriter.print("expected result")
+      } call
+    }
+
+    "should throw an error if more than 3 503s are received" in {
+      calling {() =>
+        bucket.delete("test-item").data.get must throwAn[S3Exception]
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } call
+
+    }
   }
 
   def calling(requestBlock:() => Unit): ClientExpectation = {

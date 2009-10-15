@@ -60,7 +60,7 @@ class Bucket(name: String, client: S3Client) {
   def put(key: String, data: String) = {
     client.execute(new S3Put(client, name, key, data))
   }
-  
+
   def delete(key: String) = {
     client.execute(new S3Delete(client, name, key))
   }

@@ -3,7 +3,6 @@ import net.lag.configgy.Configgy
 import net.lag.logging.Logger
 
 object Environment {
-  val config = Configgy.configure("s3q.config")
   var environment:Environment = new Environment
   def env = { environment }
 }

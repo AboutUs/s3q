@@ -26,7 +26,7 @@ class S3Response(exchange: S3Exchange) {
   }
 
   def handleResponse(exchange:S3Exchange): Option[String] = {
-    if(exchange.status != 200){
+    if(!(200 to 299).contains(exchange.status)){
       if(exchange.status == 404){
         log.debug("Received 404 response")
         return None

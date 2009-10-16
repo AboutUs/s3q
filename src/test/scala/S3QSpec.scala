@@ -308,7 +308,7 @@ object S3QSpecification extends Specification  {
         request.getRequestURI must_== "/test-bucket/test-item"
         request.getHeader("Authorization") must_== "AWS foo:y89SjNCHD9fBl9E9SNmgvCfozJg="
         request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
-        response.setStatus(200)
+        response.setStatus(204)
       } call
     }
     "have a valid url" in {

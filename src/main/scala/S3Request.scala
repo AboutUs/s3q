@@ -36,7 +36,7 @@ abstract class S3Request {
   def authorization: String =
     "AWS " + client.config.accessKeyId + ":" + signature
 
-  private def canonicalizedAmzHeaders = ""
+  protected def canonicalizedAmzHeaders = ""
 
   def stringToSign: String = {
     List(verb, contentMd5, contentType, date).foldLeft("")(_ + _ + "\n") +
@@ -115,10 +115,13 @@ class S3Delete(val client: S3Client, val bucket: String,
 
 
 class S3Put(val client: S3Client, val bucket: String,
-    override val path: String, data: String) extends S3Request {
+    override val path: String, data: String, extraHeaders: Map[String, String]) extends S3Request {
+
+  def this(client: S3Client, bucket: String, path: String, data: String)
+    = this(client, bucket, path, data, Map())
 
   override def verb = "PUT"
-  override def headers = super.headers + ("Content-Md5" -> contentMd5)
+  override def headers = super.headers + ("Content-Md5" -> contentMd5) ++ extraHeaders
 
   override def body = Some(new ByteArrayBuffer(data))
 
@@ -126,4 +129,11 @@ class S3Put(val client: S3Client, val bucket: String,
     new String(Base64.encodeBase64(org.apache.commons.codec.digest.DigestUtils.md5(data)))
 
   override def response(exchange: S3Exchange) = new S3PutResponse(exchange)
+
+  // TODO: allow setting Content-Type
+  override def canonicalizedAmzHeaders = extraHeaders.
+    map { case (k,v) => k.toLowerCase -> v }.
+    filter { case (k,v) => k.startsWith("x-amz-") }.toList.
+    sort { case ((k1, v1), (k2, v2)) => k1 < k2 }.
+    map { case (k,v) => k + ":" + v + "\n" }.mkString
 }

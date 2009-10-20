@@ -156,6 +156,33 @@ object S3QSpecification extends Specification  {
       } call
     }
 
+    "take into account arbitrary X-Amz headers when authorizing" in {
+      calling {() =>
+        bucket.put("test-item", "some-data", Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).data must_== Some(null)
+      } withResponse { (request, response) =>
+        request.getMethod must_== "PUT"
+        request.getRequestURI must_== "/test-bucket/test-item"
+        request.getHeader("Authorization") must_== "AWS foo:ckj5nL5TK1pLAinJG/hvEQXyrcI="
+        request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
+        request.getHeader("Content-MD5") must_== "MVaNlMH/BQXRc8prXMPPSQ=="
+        response.setStatus(200)
+      } call
+    }
+
+    "take into account arbitrary X-Amz headers but no other headers when authorizing" in {
+      calling {() =>
+        bucket.put("test-item", "some-data",
+          Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first", "Content-Encoding" -> "gzip")).data must_== Some(null)
+      } withResponse { (request, response) =>
+        request.getMethod must_== "PUT"
+        request.getRequestURI must_== "/test-bucket/test-item"
+        request.getHeader("Authorization") must_== "AWS foo:ckj5nL5TK1pLAinJG/hvEQXyrcI="
+        request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
+        request.getHeader("Content-MD5") must_== "MVaNlMH/BQXRc8prXMPPSQ=="
+        response.setStatus(200)
+      } call
+    }
+
     "send data in the body of the request" in {
       calling{() =>
         bucket.put("test-item", "some-data").data
@@ -164,6 +191,13 @@ object S3QSpecification extends Specification  {
       } call
     }
 
+    "allow headers to be set" in {
+      calling{() =>
+        bucket.put("test-item", "some-data", Map("X-Amz-Foo" -> "bar")).data
+      } withResponse { (request, response) =>
+        request.getHeader("X-Amz-Foo") must_== "bar"
+      } call
+    }
 
     "should retry 3 times when a 503 is received, even before #data is called" in {
       val barrier = new java.util.concurrent.CyclicBarrier(2)
@@ -212,7 +246,7 @@ object S3QSpecification extends Specification  {
     }
   }
 
-  "a list request" should {
+  "A list request" should {
     val bucket = new Bucket("test-bucket", client)
 
     "should get contents when there is a single page of results" in {

@@ -56,9 +56,12 @@ class Bucket(name: String, client: S3Client) {
     })
   }
 
-
   def put(key: String, data: String) = {
     client.execute(new S3Put(client, name, key, data))
+  }
+
+  def put(key: String, data: String, headers: Map[String, String]) = {
+    client.execute(new S3Put(client, name, key, data, headers))
   }
 
   def delete(key: String) = {

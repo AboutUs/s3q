@@ -49,14 +49,34 @@ object S3QSpecification extends Specification  {
   "A GET request" should {
     val bucket = new Bucket("test-bucket", client)
 
-   "should return headers" in {
-     calling {() =>
-       bucket.get("test-item").header("x-amz-foo") must_== Some("bar")
-     } withResponse { (request, response) =>
-       response.setHeader("X-Amz-Foo", "bar")
-       response.getWriter.print("expected result")
-     } call
-   }
+    "should return a specified header" in {
+      calling {() =>
+        bucket.get("test-item").header("x-amz-foo") must_== Some("bar")
+      } withResponse { (request, response) =>
+        response.setHeader("X-Amz-Foo", "bar")
+        response.getWriter.print("expected result")
+      } call
+    }
+
+    "should return None when header does not exist" in {
+      calling {() =>
+        bucket.get("test-item").header("x-amz-not-here") must beNone
+      } withResponse { (request, response) =>
+        response.getWriter.print("expected result")
+      } call
+    }
+
+    "should return all headers" in {
+      calling {() =>
+        val headers = bucket.get("test-item").headers
+        headers must haveKey("x-amz-foo")
+        headers must haveKey("x-amz-spam")
+      } withResponse { (request, response) =>
+        response.setHeader("X-Amz-Foo", "bar")
+        response.setHeader("X-Amz-Spam", "eggs")
+        response.getWriter.print("expected result")
+      } call
+    }
 
     "should be successful" in {
       calling {() =>

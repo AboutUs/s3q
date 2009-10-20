@@ -74,6 +74,13 @@ class S3Exchange(val client: S3Client, val request: S3Request,
     request.response(this)
   }
 
+  var responseHeaders = new scala.collection.mutable.HashMap[String, String]
+
+  override def onResponseHeader(key: Buffer, value: Buffer) = {
+    super.onResponseHeader(key, value)
+    responseHeaders += key.toString.toLowerCase -> value.toString
+  }
+
   val future = new DefaultCompletableFutureResult(client.config.timeout)
 
   def status = getResponseStatus

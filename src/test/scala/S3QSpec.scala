@@ -48,6 +48,16 @@ object S3QSpecification extends Specification  {
   Environment.environment = new TestEnvironment
   "A GET request" should {
     val bucket = new Bucket("test-bucket", client)
+
+   "should return headers" in {
+     calling {() =>
+       bucket.get("test-item").header("x-amz-foo") must_== Some("bar")
+     } withResponse { (request, response) =>
+       response.setHeader("X-Amz-Foo", "bar")
+       response.getWriter.print("expected result")
+     } call
+   }
+
     "should be successful" in {
       calling {() =>
         bucket.get("test-item").data.get must_== "expected result"

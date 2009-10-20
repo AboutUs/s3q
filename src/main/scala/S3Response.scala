@@ -59,6 +59,10 @@ class S3Response(exchange: S3Exchange) {
     }
   }
 
+  lazy val headers: scala.collection.Map[String, String] = whenFinished.left.get.responseHeaders
+
+  def header(key: String) = headers.get(key.toLowerCase)
+
   def request: S3Request = exchange.request
 
   def client: S3Client = exchange.client

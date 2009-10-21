@@ -56,13 +56,13 @@ abstract class S3Request {
     val format = new java.text.SimpleDateFormat(
         "EEE, dd MMM yyyy HH:mm:ss z", java.util.Locale.US)
     format.setTimeZone(new java.util.SimpleTimeZone(0, "GMT"))
-    format.format(env.currentDate)
+    format.format(Environment.env.currentDate)
   }
 
   def response(exchange: S3Exchange) = new S3Response(exchange)
 
   def incrementAttempts = synchronized {
-    env.sleep((500 * java.lang.Math.pow(2,attempts)).toLong)
+    Environment.env.sleep((500 * java.lang.Math.pow(2,attempts)).toLong)
     attempts += 1
   }
 

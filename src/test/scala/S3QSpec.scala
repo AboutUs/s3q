@@ -1,7 +1,6 @@
 import org.specs._
 import org.s3q._
 
-
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServlet}
 import scala.collection.jcl.Conversions._
 
@@ -46,6 +45,8 @@ object S3QSpecification extends Specification  {
   }
 
   Environment.environment = new TestEnvironment
+  Environment.environment.logger.setLevel(net.lag.logging.Logger.OFF)
+
   "A GET request" should {
     val bucket = new Bucket("test-bucket", client)
 

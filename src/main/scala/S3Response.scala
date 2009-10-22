@@ -2,15 +2,14 @@ package org.s3q
 import scala.xml._
 import scala.xml.parsing._
 import Environment._
-import net.lag.configgy.Configgy
-import net.lag.logging.Logger
+
 
 case class S3Exception(val status: Int, val response:String) extends Exception {
   override def toString = {"error code " + status + ": " + response}
 }
 
 class S3Response(exchange: S3Exchange) {
-  private val log = Logger.get
+  private val log = Environment.env.logger
 
   lazy val whenFinished = {
     exchange.get

@@ -115,9 +115,9 @@ class S3Delete(val client: S3Client, val bucket: String,
 
 
 class S3Put(val client: S3Client, val bucket: String,
-    override val path: String, data: String, extraHeaders: Map[String, String]) extends S3Request {
+    override val path: String, data: Array[Byte], extraHeaders: Map[String, String]) extends S3Request {
 
-  def this(client: S3Client, bucket: String, path: String, data: String)
+  def this(client: S3Client, bucket: String, path: String, data: Array[Byte])
     = this(client, bucket, path, data, Map())
 
   override def verb = "PUT"

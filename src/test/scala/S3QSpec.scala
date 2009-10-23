@@ -147,7 +147,7 @@ object S3QSpecification extends Specification  {
     val bucket = new Bucket("test-bucket", client)
     "be successful" in {
       calling {() =>
-        bucket.put("test-item", "some-data").data must_== Some(null)
+        bucket.put("test-item", "some-data".getBytes).data must_== Some(null)
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -160,7 +160,7 @@ object S3QSpecification extends Specification  {
 
     "take into account arbitrary X-Amz headers when authorizing" in {
       calling {() =>
-        bucket.put("test-item", "some-data", Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).data must_== Some(null)
+        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).data must_== Some(null)
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -173,7 +173,7 @@ object S3QSpecification extends Specification  {
 
     "take into account arbitrary X-Amz headers but no other headers when authorizing" in {
       calling {() =>
-        bucket.put("test-item", "some-data",
+        bucket.put("test-item", "some-data".getBytes,
           Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first", "Content-Encoding" -> "gzip")).data must_== Some(null)
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
@@ -187,7 +187,7 @@ object S3QSpecification extends Specification  {
 
     "send data in the body of the request" in {
       calling{() =>
-        bucket.put("test-item", "some-data").data
+        bucket.put("test-item", "some-data".getBytes).data
       } withResponse { (request, response) =>
         request.getReader.readLine must_== "some-data"
       } call
@@ -195,7 +195,7 @@ object S3QSpecification extends Specification  {
 
     "allow headers to be set" in {
       calling{() =>
-        bucket.put("test-item", "some-data", Map("X-Amz-Foo" -> "bar")).data
+        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Foo" -> "bar")).data
       } withResponse { (request, response) =>
         request.getHeader("X-Amz-Foo") must_== "bar"
       } call
@@ -205,7 +205,7 @@ object S3QSpecification extends Specification  {
       val barrier = new java.util.concurrent.CyclicBarrier(2)
       var response:S3Response = null
       calling {() =>
-        response = bucket.put("test-item", "some-data")
+        response = bucket.put("test-item", "some-data".getBytes)
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -221,7 +221,7 @@ object S3QSpecification extends Specification  {
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>
-        bucket.put("test-item", "some-data").data.get must throwAn[S3Exception]
+        bucket.put("test-item", "some-data".getBytes).data.get must throwAn[S3Exception]
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -235,7 +235,7 @@ object S3QSpecification extends Specification  {
 
     "should retry three times if it receives a timeout" in {
       calling {() =>
-        new String(bucket.put("test-item", "some-data").data.get) must_== "expected result"
+        new String(bucket.put("test-item", "some-data".getBytes).data.get) must_== "expected result"
       } withResponse { (request, response) =>
         Thread sleep 600
       } withResponse { (request, response) =>

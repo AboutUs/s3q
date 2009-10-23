@@ -362,6 +362,46 @@ object S3QSpecification extends Specification  {
       } call
     }
 
+    "should be able to start listing at a key other than the first" in {
+      calling {() =>
+        bucket.keys("foo")
+      } withResponse { (request, response) =>
+        request.getQueryString must_== "max_keys=1000&marker=foo"
+        val xml = <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01">
+          <Name>quotes</Name>
+          <Prefix></Prefix>
+          <Marker></Marker>
+          <MaxKeys>40</MaxKeys>
+          <IsTruncated>false</IsTruncated>
+          <Contents>
+            <Key>spam</Key>
+            <LastModified>2006-01-01T12:00:00.000Z</LastModified>
+            <ETag>&quot;828ef3fdfa96f00ad9f27c383fc9ac7f&quot;</ETag>
+            <Size>5</Size>
+            <StorageClass>STANDARD</StorageClass>
+            <Owner>
+              <ID>bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e161ca5fb16fd081034f</ID>
+              <DisplayName>webfile</DisplayName>
+             </Owner>
+          </Contents>
+          <Contents>
+            <Key>eggs</Key>
+            <LastModified>2006-01-01T12:00:00.000Z</LastModified>
+            <ETag>&quot;828ef3fdfa96f00ad9f27c383fc9ac7f&quot;</ETag>
+            <Size>4</Size>
+            <StorageClass>STANDARD</StorageClass>
+             <Owner>
+              <ID>bcaf1ffd86f41caff1a493dc2ad8c2c281e37522a640e161ca5fb16fd081034f</ID>
+              <DisplayName>webfile</DisplayName>
+            </Owner>
+         </Contents>
+        </ListBucketResult>
+
+        response.getWriter.print(xml.toString)
+      } call
+
+    }
+
   }
 
   "A DELETE Request" should {

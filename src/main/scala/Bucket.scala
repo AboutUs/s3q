@@ -23,9 +23,9 @@ class Bucket(name: String, client: S3Client) {
     }
   }
 
-  private def keyStreams = {
+  private def keyStreams(first_key: Option[String]) = {
     val MAX_BATCH = 1000
-    var marker: Option[String] = None
+    var marker: Option[String] = first_key
     var done = false
 
     new Iterator[Iterable[String]] {
@@ -43,7 +43,11 @@ class Bucket(name: String, client: S3Client) {
   }
 
   def keys:Iterable[String] = {
-    Stream.concat(keyStreams.map(_.toStream))
+    Stream.concat(keyStreams(None).map(_.toStream))
+  }
+
+  def keys(marker: String):Iterable[String] = {
+    Stream.concat(keyStreams(Some(marker)).map(_.toStream))
   }
 
   def get(key: String) = {

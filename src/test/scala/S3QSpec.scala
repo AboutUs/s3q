@@ -1,6 +1,7 @@
 import org.specs._
 import org.s3q._
 
+import java.util.concurrent.TimeUnit.SECONDS
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServlet}
 import scala.collection.jcl.Conversions._
 
@@ -81,7 +82,7 @@ object S3QSpecification extends Specification  {
 
     "should be successful" in {
       calling {() =>
-        bucket.get("test-item").data.get must_== "expected result"
+        new String(bucket.get("test-item").data.get) must_== "expected result"
       } withResponse { (request, response) =>
         request.getMethod must_== "GET"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -93,7 +94,7 @@ object S3QSpecification extends Specification  {
 
     "should retry 3 times when a 503 is received" in {
       calling {() =>
-        bucket.get("test-item").data.get must_== "expected result"
+        new String(bucket.get("test-item").data.get) must_== "expected result"
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -114,15 +115,15 @@ object S3QSpecification extends Specification  {
         val barrier = new java.util.concurrent.CyclicBarrier(2)
         calling {() =>
           bucket.get("test-item", { (response) =>
-            response.data must_== Some("expected result")
-            barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
+            new String(response.data.get) must_== "expected result"
+            barrier.await(1, SECONDS)
           })
         } withResponse { (request, response) =>
           response.getWriter.print("expected result")
 
         } call
 
-        barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
+        barrier.await(1, SECONDS)
       }
     }
 
@@ -211,11 +212,11 @@ object S3QSpecification extends Specification  {
         response.setStatus(503)
       } withResponse { (request, response) =>
         response.getWriter.print("expected result")
-        barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
+        barrier.await(1, SECONDS)
       } call
 
-      barrier.await(1, java.util.concurrent.TimeUnit.SECONDS)
-      response.data.get must_== "expected result"
+      barrier.await(1, SECONDS)
+      new String(response.data.get) must_== "expected result"
     }
 
     "should throw an error if more than 3 503s are received" in {
@@ -234,7 +235,7 @@ object S3QSpecification extends Specification  {
 
     "should retry three times if it receives a timeout" in {
       calling {() =>
-        bucket.put("test-item", "some-data").data must_== Some("expected result")
+        new String(bucket.put("test-item", "some-data").data.get) must_== "expected result"
       } withResponse { (request, response) =>
         Thread sleep 600
       } withResponse { (request, response) =>
@@ -383,7 +384,7 @@ object S3QSpecification extends Specification  {
 
     "should retry 3 times when a 503 is received" in {
       calling {() =>
-        bucket.delete("test-item").data.get must_== "expected result"
+        new String(bucket.delete("test-item").data.get) must_== "expected result"
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>

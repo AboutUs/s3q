@@ -17,14 +17,14 @@ class S3Response(exchange: S3Exchange) {
 
   lazy val data = getData
 
-  private def getData: Option[String] = {
+  private def getData: Option[Array[Byte]] = {
     whenFinished match {
       case Right(e) => retry(e)
       case Left(exchange) => handleResponse(exchange)
     }
   }
 
-  def handleResponse(exchange:S3Exchange): Option[String] = {
+  def handleResponse(exchange:S3Exchange): Option[Array[Byte]] = {
     if(!(200 to 299).contains(exchange.status)){
       if(exchange.status == 404){
         log.debug("Received 404 response")
@@ -33,10 +33,10 @@ class S3Response(exchange: S3Exchange) {
       return retry(exchange)
     }
     log.debug("Received %s successful response", exchange.status)
-    Some(exchange.getResponseContent)
+    Some(exchange.getResponseBytes)
   }
 
-  def retry(error:Throwable): Option[String] = {
+  def retry(error:Throwable): Option[Array[Byte]] = {
     if(!request.isRetriable){
       log.error("Received Throwable %s: Not Retrying", error)
       throw(error)
@@ -47,12 +47,12 @@ class S3Response(exchange: S3Exchange) {
     }
   }
 
-  def retry(exchange:S3Exchange): Option[String] = {
+  def retry(exchange:S3Exchange): Option[Array[Byte]] = {
     if(!request.isRetriable){
       log.error("Received %s error response: Not Retrying", exchange.status)
       throw(S3Exception(exchange.status, exchange.getResponseContent))
     } else {
-      log.error("Received %s error response: Retrying", exchange.status)
+      log.error("Received %s error response: Retrying\nWith message:", exchange.status, exchange.getResponseContent)
       request.incrementAttempts
       return client.execute(request).data
     }
@@ -77,7 +77,7 @@ class S3PutResponse(exchange: S3Exchange) extends S3Response(exchange: S3Exchang
 
 class S3ListResponse(exchange: S3Exchange) extends S3Response(exchange: S3Exchange) {
   lazy val doc = { data match {
-    case Some(string) => XML.loadString(string)
+    case Some(bytes) => XML.loadString(new String(bytes, "UTF-8"))
     case None => null
     }
   }

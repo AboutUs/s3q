@@ -1,11 +1,16 @@
 import org.specs._
+import org.mockito._
+import org.mockito.Mockito._
+import org.mockito.Matchers._
+import org.specs.mock.Mockito
+
 import org.s3q._
 
 import java.util.concurrent.TimeUnit.SECONDS
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServlet}
 import scala.collection.jcl.Conversions._
 
-object S3QSpecification extends Specification  {
+object S3QSpecification extends Specification with Mockito {
 
   type Responder = (HttpServletRequest, HttpServletResponse) => Unit
 
@@ -47,6 +52,37 @@ object S3QSpecification extends Specification  {
 
   Environment.environment = new TestEnvironment
   Environment.environment.logger.setLevel(net.lag.logging.Logger.OFF)
+
+  "With a full queue" should {
+    val singleThreadClient = new S3Client(new S3Config("foo", "bar", 1, 500, "localhost:8080"))
+    val bucket = new Bucket("test-bucket", singleThreadClient)
+    val barrier = new java.util.concurrent.CyclicBarrier(2)
+
+    class Checkpoint {
+      def checkinAt(path: String) = println(path)
+    }
+
+    "discard the head of the request queue" in {
+      val checkpoint = mock[Checkpoint]
+      calling {() =>
+        bucket.get("1")
+        bucket.get("2")
+        barrier.await(1, SECONDS)
+      } withResponse {(request, response) =>
+        checkpoint.checkinAt(request.getRequestURI)
+        barrier.await(1, SECONDS)
+      } withResponse {(request, response) =>
+        checkpoint.checkinAt(request.getRequestURI)
+        response.getWriter.print("expected result")
+      } withResponse {(request, response) =>
+        checkpoint.checkinAt(request.getRequestURI)
+        response.getWriter.print("expected result")
+      } call
+
+      (checkpoint.checkinAt("/test-bucket/1") on checkpoint).twice then
+        (checkpoint.checkinAt("/test-bucket/2") on checkpoint) were calledInOrder
+    }
+  }
 
   "A GET request" should {
     val bucket = new Bucket("test-bucket", client)

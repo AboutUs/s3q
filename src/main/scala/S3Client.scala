@@ -38,21 +38,40 @@ class S3Client(val config:S3Config) {
   def execute(request: S3Request): S3Response = {
     val exchange = new S3Exchange(this, request, activeRequests)
     log.debug("Queuing request... %s slots remaining", activeRequests.remainingCapacity())
-    if ( activeRequests.remainingCapacity() == 0 ){
-      log.warning("Forcing first item off of queue")
-      val ex = activeRequests.poll
-      if(ex != null ) {
-        ex.response.retry(new Exception)
-      }
-    }
-    activeRequests.put(exchange)
-    client.send(exchange)
-
-    exchange.response
+    executeOnQueue(exchange).response
   }
 
   def execute(request: S3List): S3ListResponse = {
     execute(request.asInstanceOf[S3Request]).asInstanceOf[S3ListResponse]
+  }
+
+  def queueFull = activeRequests.remainingCapacity() == 0
+
+  def executeOnQueue(exchange: S3Exchange): S3Exchange = {
+    if (queueFull) {
+      val evicted = evictHeadFromQueue
+      evicted match {
+        case Some(ex) => ex.response.retry(new Exception)
+        case None =>
+      }
+    }
+
+    executeExchange(exchange)
+  }
+
+  def executeExchange(exchange: S3Exchange): S3Exchange = {
+    activeRequests.put(exchange)
+    client.send(exchange)
+
+    exchange
+  }
+
+  def evictHeadFromQueue: Option[S3Exchange] = {
+    log.warning("Forcing first item off of queue")
+    activeRequests.poll match {
+      case e: S3Exchange => Some(e)
+      case null => None
+    }
   }
 
 }

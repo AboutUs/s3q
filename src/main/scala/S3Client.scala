@@ -48,14 +48,7 @@ class S3Client(val config:S3Config) {
   def queueFull = activeRequests.remainingCapacity() == 0
 
   def executeOnQueue(exchange: S3Exchange): S3Exchange = {
-    if (queueFull) {
-      val evicted = evictHeadFromQueue
-      evicted match {
-        case Some(ex) => ex.response.retry(new Exception)
-        case None =>
-      }
-    }
-
+    if (queueFull) evictHeadFromQueue
     executeExchange(exchange)
   }
 
@@ -66,10 +59,11 @@ class S3Client(val config:S3Config) {
     exchange
   }
 
-  def evictHeadFromQueue: Option[S3Exchange] = {
-    log.warning("Forcing first item off of queue")
+  def evictHeadFromQueue = {
     activeRequests.poll match {
-      case e: S3Exchange => Some(e)
+      case e: S3Exchange => {
+        log.warning("Eviction on full queue: " + e.request.bucket + " " + e.request.path)
+      }
       case null => None
     }
   }

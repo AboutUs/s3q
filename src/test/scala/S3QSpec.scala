@@ -58,29 +58,26 @@ object S3QSpecification extends Specification with Mockito {
     val bucket = new Bucket("test-bucket", singleThreadClient)
     val barrier = new java.util.concurrent.CyclicBarrier(2)
 
-    class Checkpoint {
-      def checkinAt(path: String) = println(path)
+    class Recorder {
+      def record(path: String) = None
     }
 
     "discard the head of the request queue" in {
-      val checkpoint = mock[Checkpoint]
+      val r = mock[Recorder]
       calling {() =>
         bucket.get("1")
-        bucket.get("2")
+        new String(bucket.get("2").data.get) must_== "expected result"
         barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
-        checkpoint.checkinAt(request.getRequestURI)
+        r.record(request.getRequestURI)
         barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
-        checkpoint.checkinAt(request.getRequestURI)
-        response.getWriter.print("expected result")
-      } withResponse {(request, response) =>
-        checkpoint.checkinAt(request.getRequestURI)
+        r.record(request.getRequestURI)
         response.getWriter.print("expected result")
       } call
 
-      (checkpoint.checkinAt("/test-bucket/1") on checkpoint).twice then
-        (checkpoint.checkinAt("/test-bucket/2") on checkpoint) were calledInOrder
+      r.record("/test-bucket/1") was called.once
+      r.record("/test-bucket/2") was called.once
     }
   }
 

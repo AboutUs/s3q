@@ -1,11 +1,16 @@
 import org.specs._
+import org.mockito._
+import org.mockito.Mockito._
+import org.mockito.Matchers._
+import org.specs.mock.Mockito
+
 import org.s3q._
 
 import java.util.concurrent.TimeUnit.SECONDS
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServlet}
 import scala.collection.jcl.Conversions._
 
-object S3QSpecification extends Specification  {
+object S3QSpecification extends Specification with Mockito {
 
   type Responder = (HttpServletRequest, HttpServletResponse) => Unit
 
@@ -47,6 +52,67 @@ object S3QSpecification extends Specification  {
 
   Environment.environment = new TestEnvironment
   Environment.environment.logger.setLevel(net.lag.logging.Logger.OFF)
+
+  class Recorder {
+    def record(path: String) = None
+  }
+
+  "With a full queue using discard policy" should {
+    val singleThreadClient = new S3Client(new S3Config("foo", "bar", 1, 500, "localhost:8080", "discard"))
+    val bucket = new Bucket("test-bucket", singleThreadClient)
+    val barrier = new java.util.concurrent.CyclicBarrier(2)
+
+    "discard the head of the request queue" in {
+      val r = mock[Recorder]
+
+      val firstRequestDone = new java.util.concurrent.CyclicBarrier(2)
+      calling {() =>
+        bucket.get("1")
+        firstRequestDone.await(1, SECONDS)
+        new String(bucket.get("2").data.get) must_== "expected result"
+        barrier.await(1, SECONDS)
+      } withResponse {(request, response) =>
+        r.record(request.getRequestURI)
+        firstRequestDone.await(1, SECONDS)
+        barrier.await(1, SECONDS)
+      } withResponse {(request, response) =>
+        r.record(request.getRequestURI)
+        response.getWriter.print("expected result")
+      } call
+
+      (r.record("/test-bucket/1") on r) then
+      (r.record("/test-bucket/2") on r) were calledInOrder
+    }
+  }
+
+  "With a full queue using append policy" should {
+    val singleThreadClient = new S3Client(new S3Config("foo", "bar", 1, 500, "localhost:8080", "append"))
+    val bucket = new Bucket("test-bucket", singleThreadClient)
+    val barrier = new java.util.concurrent.CyclicBarrier(2)
+
+    "append the head of the request queue after the new request" in {
+      val r = mock[Recorder]
+      calling {() =>
+        bucket.get("1")
+        new String(bucket.get("2").data.get) must_== "expected result"
+        barrier.await(1, SECONDS)
+      } withResponse {(request, response) =>
+        r.record(request.getRequestURI)
+        barrier.await(1, SECONDS)
+      } withResponse {(request, response) =>
+        r.record(request.getRequestURI)
+        response.getWriter.print("expected result")
+      } withResponse {(request, response) =>
+        r.record(request.getRequestURI)
+        response.getWriter.print("expected result")
+      } call
+
+      (r.record("/test-bucket/1") on r) then
+      (r.record("/test-bucket/2") on r) then
+      (r.record("/test-bucket/1") on r) were calledInOrder
+    }
+  }
+
 
   "A GET request" should {
     val bucket = new Bucket("test-bucket", client)

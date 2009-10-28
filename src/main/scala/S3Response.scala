@@ -43,6 +43,7 @@ class S3Response(exchange: S3Exchange) {
     } else {
       log.error("Received Throwable %s: Retrying", error)
       request.incrementAttempts
+      while(client.queueFull) { Thread.sleep(100) }
       return client.execute(request).data
     }
   }

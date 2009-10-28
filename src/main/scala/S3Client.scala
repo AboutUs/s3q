@@ -9,10 +9,34 @@ import java.util.concurrent._
 import net.lag.configgy.Configgy
 import net.lag.logging.Logger
 
+abstract case class Eviction() {
+  val name: String
+}
+case object Eviction {
+  implicit def string2eviction(name: String): Eviction = {
+    name match {
+      case "discard" => DiscardPolicy
+      case "append" => AppendPolicy
+      case _ => throw new IllegalArgumentException("Invalid eviction policy")
+    }
+  }
+}
+case object DiscardPolicy extends Eviction {
+  override val name = "discard"
+}
+case object AppendPolicy extends Eviction {
+  override val name = "append"
+}
+
 case class S3Config(
   val accessKeyId: String, val secretAccessKey: String,
-  val maxConcurrency:Int, val timeout:Int, val hostname:String
+  val maxConcurrency:Int, val timeout:Int, val hostname:String,
+  val evictionPolicy: Eviction
 ) {
+    def this(
+      accessKeyId: String, secretAccessKey: String, maxConcurrency:Int, timeout:Int, hostname:String
+    ) = this(accessKeyId, secretAccessKey, maxConcurrency, timeout, hostname, AppendPolicy)
+
     def this(
       accessKeyId: String, secretAccessKey: String, maxConcurrency:Int, timeout:Int
     ) = this(accessKeyId, secretAccessKey, maxConcurrency, timeout, "s3.amazonaws.com")
@@ -23,6 +47,7 @@ case class S3Config(
 
     def this(accessKeyId: String, secretAccessKey: String) =
       this(accessKeyId, secretAccessKey, 500)
+
 }
 
 class S3Client(val config:S3Config) {
@@ -48,8 +73,24 @@ class S3Client(val config:S3Config) {
   def queueFull = activeRequests.remainingCapacity() == 0
 
   def executeOnQueue(exchange: S3Exchange): S3Exchange = {
-    if (queueFull) evictHeadFromQueue
-    executeExchange(exchange)
+    if (queueFull) {
+      val evicted = evictHeadFromQueue
+      executeExchange(exchange)
+
+      config.evictionPolicy match {
+        case DiscardPolicy =>
+        case AppendPolicy => {
+          evicted match {
+            case Some(ex) => ex.response.retry(new Exception)
+            case None =>
+          }
+        }
+      }
+    } else {
+      executeExchange(exchange)
+    }
+
+    exchange
   }
 
   def executeExchange(exchange: S3Exchange): S3Exchange = {
@@ -59,10 +100,11 @@ class S3Client(val config:S3Config) {
     exchange
   }
 
-  def evictHeadFromQueue = {
+  def evictHeadFromQueue: Option[S3Exchange] = {
     activeRequests.poll match {
-      case e: S3Exchange => {
-        log.warning("Eviction on full queue: " + e.request.bucket + " " + e.request.path)
+      case ex: S3Exchange => {
+        log.warning("Eviction on full queue (Policy: " + config.evictionPolicy.name + "): " + ex.request.bucket + " " + ex.request.path)
+        Some(ex)
       }
       case null => None
     }

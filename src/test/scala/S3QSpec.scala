@@ -60,7 +60,6 @@ object S3QSpecification extends Specification with Mockito {
   "With a full queue using discard policy" should {
     val singleThreadClient = new S3Client(new S3Config("foo", "bar", 1, 500, "localhost:8080", "discard"))
     val bucket = new Bucket("test-bucket", singleThreadClient)
-    val barrier = new java.util.concurrent.CyclicBarrier(2)
 
     "discard the head of the request queue" in {
       val r = mock[Recorder]
@@ -70,11 +69,9 @@ object S3QSpecification extends Specification with Mockito {
         bucket.get("1")
         firstRequestDone.await(1, SECONDS)
         new String(bucket.get("2").data.get) must_== "expected result"
-        barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
         r.record(request.getRequestURI)
         firstRequestDone.await(1, SECONDS)
-        barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
         r.record(request.getRequestURI)
         response.getWriter.print("expected result")
@@ -82,6 +79,23 @@ object S3QSpecification extends Specification with Mockito {
 
       (r.record("/test-bucket/1") on r) then
       (r.record("/test-bucket/2") on r) were calledInOrder
+    }
+
+    "call the callback on the evicted item" in {
+      val r = mock[Recorder]
+      val callbackExpectation = new java.util.concurrent.CyclicBarrier(2)
+      val firstRequestDone = new java.util.concurrent.CyclicBarrier(2)
+
+      calling {() =>
+        bucket.get("1", (response) => callbackExpectation.await(1, SECONDS))
+        firstRequestDone.await(1, SECONDS)
+        new String(bucket.get("2").data.get) must_== "expected result"
+      } withResponse {(request, response) =>
+        firstRequestDone.await(1, SECONDS)
+      } withResponse {(request, response) =>
+        response.getWriter.print("expected result")
+      } call;
+      callbackExpectation.await(1, SECONDS)
     }
   }
 
@@ -176,22 +190,48 @@ object S3QSpecification extends Specification with Mockito {
       } withResponse { (request, response) =>
         response.setStatus(404)
       } call
-
-      "should call a callback upon completion" in {
-        val barrier = new java.util.concurrent.CyclicBarrier(2)
-        calling {() =>
-          bucket.get("test-item", { (response) =>
-            new String(response.data.get) must_== "expected result"
-            barrier.await(1, SECONDS)
-          })
-        } withResponse { (request, response) =>
-          response.getWriter.print("expected result")
-
-        } call
-
-        barrier.await(1, SECONDS)
-      }
     }
+
+    "should call a callback upon completion" in {
+      val callbackExpectation = new java.util.concurrent.CyclicBarrier(2)
+      calling {() =>
+        bucket.get("test-item", { (response) =>
+
+          new String(response.get.data.get) must_== "expected result"
+          callbackExpectation.await(1, SECONDS)
+        })
+      } withResponse { (request, response) =>
+        response.getWriter.print("expected result")
+
+      } call
+
+      callbackExpectation.await(1, SECONDS)
+    }
+
+    "should call a callback upon failure" in {
+      val callbackExpectation = new java.util.concurrent.CyclicBarrier(2)
+      calling {() =>
+        bucket.get("test-item", { (response) =>
+          response match {
+            case None => //request failed
+            case Some(r) => throw new Exception()
+          }
+          response must_== None
+          callbackExpectation.await(1, SECONDS)
+        })
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } withResponse { (request, response) =>
+        response.setStatus(503)
+      } call;
+      callbackExpectation.await(1, SECONDS)
+    }
+
+
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>

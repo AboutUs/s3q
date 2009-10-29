@@ -169,13 +169,13 @@ class S3Exchange(val client: S3Client, val request: S3Request,
     future.completeWithResult(this)
     markAsFinished
     response.verify
-    request.callback(response)
+    request.callback(Some(response))
   }
 
   override def onException(ex: Throwable) {
     future.completeWithException(this, ex)
     markAsFinished
-/*    response.verify*/
+    request.callback(None)
   }
 
   override def onConnectionFailed(ex: Throwable) { onException(ex) }

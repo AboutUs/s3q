@@ -69,7 +69,7 @@ abstract class S3Request {
   def isRetriable: Boolean =
     synchronized { attempts <= MAX_ATTEMPTS }
 
-  def callback(response: S3Response) = { }
+  def callback(response: Option[S3Response]) = { }
 
 }
 

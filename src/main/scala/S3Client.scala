@@ -140,21 +140,21 @@ class S3Exchange(val client: S3Client, val request: S3Request,
 
   def status = getResponseStatus
 
-  def get: Either[S3Exchange, Throwable] = {
+  def get: Either[Throwable, S3Exchange] = {
     try {
       future.await
     }
     catch {
-      case e: FutureTimeoutException => return Right(new TimeoutException)
+      case e: FutureTimeoutException => return Left(new TimeoutException)
     } finally {
       markAsFinished
     }
 
     if (future.exception.isDefined) {
-      future.exception.get match {case (blame, exception) => return Right(exception)}
+      future.exception.get match {case (blame, exception) => return Left(exception)}
     }
 
-    Left(future.result.get.asInstanceOf[S3Exchange])
+    Right(future.result.get.asInstanceOf[S3Exchange])
   }
 
   def markAsFinished = {

@@ -19,8 +19,8 @@ class S3Response(exchange: S3Exchange) {
 
   private def getData: Option[Array[Byte]] = {
     whenFinished match {
-      case Right(e) => retry(e)
-      case Left(exchange) => handleResponse(exchange)
+      case Left(e) => retry(e)
+      case Right(exchange) => handleResponse(exchange)
     }
   }
 
@@ -59,7 +59,7 @@ class S3Response(exchange: S3Exchange) {
     }
   }
 
-  lazy val headers: scala.collection.Map[String, String] = whenFinished.left.get.responseHeaders
+  lazy val headers: scala.collection.Map[String, String] = whenFinished.right.get.responseHeaders
 
   def header(key: String) = headers.get(key.toLowerCase)
 

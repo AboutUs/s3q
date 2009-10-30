@@ -68,7 +68,7 @@ object S3QSpecification extends Specification with Mockito {
       calling {() =>
         bucket.get("1")
         firstRequestDone.await(1, SECONDS)
-        new String(bucket.get("2").data.get) must_== "expected result"
+        new String(bucket.get("2").get.data.get) must_== "expected result"
       } withResponse {(request, response) =>
         r.record(request.getRequestURI)
         firstRequestDone.await(1, SECONDS)
@@ -89,7 +89,7 @@ object S3QSpecification extends Specification with Mockito {
       calling {() =>
         bucket.get("1", (response) => callbackExpectation.await(1, SECONDS))
         firstRequestDone.await(1, SECONDS)
-        new String(bucket.get("2").data.get) must_== "expected result"
+        new String(bucket.get("2").get.data.get) must_== "expected result"
       } withResponse {(request, response) =>
         firstRequestDone.await(1, SECONDS)
       } withResponse {(request, response) =>
@@ -108,7 +108,7 @@ object S3QSpecification extends Specification with Mockito {
       val r = mock[Recorder]
       calling {() =>
         bucket.get("1")
-        new String(bucket.get("2").data.get) must_== "expected result"
+        new String(bucket.get("2").get.data.get) must_== "expected result"
         barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
         r.record(request.getRequestURI)
@@ -133,7 +133,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should return a specified header" in {
       calling {() =>
-        bucket.get("test-item").header("x-amz-foo") must_== Some("bar")
+        bucket.get("test-item").get.header("x-amz-foo") must_== Some("bar")
       } withResponse { (request, response) =>
         response.setHeader("X-Amz-Foo", "bar")
         response.getWriter.print("expected result")
@@ -142,7 +142,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should return None when header does not exist" in {
       calling {() =>
-        bucket.get("test-item").header("x-amz-not-here") must beNone
+        bucket.get("test-item").get.header("x-amz-not-here") must beNone
       } withResponse { (request, response) =>
         response.getWriter.print("expected result")
       } call
@@ -150,7 +150,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should return all headers" in {
       calling {() =>
-        val headers = bucket.get("test-item").headers
+        val headers = bucket.get("test-item").get.headers
         headers must haveKey("x-amz-foo")
         headers must haveKey("x-amz-spam")
       } withResponse { (request, response) =>
@@ -162,7 +162,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should be successful" in {
       calling {() =>
-        new String(bucket.get("test-item").data.get) must_== "expected result"
+        new String(bucket.get("test-item").get.data.get) must_== "expected result"
       } withResponse { (request, response) =>
         request.getMethod must_== "GET"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -174,7 +174,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should retry 3 times when a 503 is received" in {
       calling {() =>
-        new String(bucket.get("test-item").data.get) must_== "expected result"
+        new String(bucket.get("test-item").get.data.get) must_== "expected result"
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -186,7 +186,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should not retry if it a 404 is received" in {
       calling {() =>
-        bucket.get("test-item").data must beNone
+        bucket.get("test-item").get.data must beNone
       } withResponse { (request, response) =>
         response.setStatus(404)
       } call
@@ -235,7 +235,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>
-        bucket.get("test-item").data.get must throwAn[S3Exception]
+        bucket.get("test-item").get.data.get must throwAn[S3Exception]
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -253,7 +253,7 @@ object S3QSpecification extends Specification with Mockito {
     val bucket = new Bucket("test-bucket", client)
     "be successful" in {
       calling {() =>
-        bucket.put("test-item", "some-data".getBytes).data must_== Some(null)
+        bucket.put("test-item", "some-data".getBytes).get.data must_== Some(null)
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -266,7 +266,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "take into account arbitrary X-Amz headers when authorizing" in {
       calling {() =>
-        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).data must_== Some(null)
+        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).get.data must_== Some(null)
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -280,7 +280,7 @@ object S3QSpecification extends Specification with Mockito {
     "take into account arbitrary X-Amz headers but no other headers when authorizing" in {
       calling {() =>
         bucket.put("test-item", "some-data".getBytes,
-          Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first", "Content-Encoding" -> "gzip")).data must_== Some(null)
+          Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first", "Content-Encoding" -> "gzip")).get.data must_== Some(null)
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -293,7 +293,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "send data in the body of the request" in {
       calling{() =>
-        bucket.put("test-item", "some-data".getBytes).data
+        bucket.put("test-item", "some-data".getBytes).get.data
       } withResponse { (request, response) =>
         request.getReader.readLine must_== "some-data"
       } call
@@ -301,7 +301,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "allow headers to be set" in {
       calling{() =>
-        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Foo" -> "bar")).data
+        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Foo" -> "bar")).get.data
       } withResponse { (request, response) =>
         request.getHeader("X-Amz-Foo") must_== "bar"
       } call
@@ -311,7 +311,7 @@ object S3QSpecification extends Specification with Mockito {
       val barrier = new java.util.concurrent.CyclicBarrier(2)
       var response:S3Response = null
       calling {() =>
-        response = bucket.put("test-item", "some-data".getBytes)
+        response = bucket.put("test-item", "some-data".getBytes).get
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -327,7 +327,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>
-        bucket.put("test-item", "some-data".getBytes).data.get must throwAn[S3Exception]
+        bucket.put("test-item", "some-data".getBytes).get.data.get must throwAn[S3Exception]
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -341,7 +341,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should retry three times if it receives a timeout" in {
       calling {() =>
-        new String(bucket.put("test-item", "some-data".getBytes).data.get) must_== "expected result"
+        new String(bucket.put("test-item", "some-data".getBytes).get.data.get) must_== "expected result"
       } withResponse { (request, response) =>
         Thread sleep 600
       } withResponse { (request, response) =>
@@ -514,7 +514,7 @@ object S3QSpecification extends Specification with Mockito {
     val bucket = new Bucket("test-bucket", client)
     "be successful" in {
       calling {() =>
-        bucket.delete("test-item").data must_== Some(null)
+        bucket.delete("test-item").get.data must_== Some(null)
       } withResponse { (request, response) =>
         request.getMethod must_== "DELETE"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -530,7 +530,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should retry 3 times when a 503 is received" in {
       calling {() =>
-        new String(bucket.delete("test-item").data.get) must_== "expected result"
+        new String(bucket.delete("test-item").get.data.get) must_== "expected result"
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -542,7 +542,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>
-        bucket.delete("test-item").data.get must throwAn[S3Exception]
+        bucket.delete("test-item").get.data.get must throwAn[S3Exception]
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>

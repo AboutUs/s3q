@@ -44,7 +44,10 @@ class S3Response(exchange: S3Exchange) {
       log.error("Received Throwable %s: Retrying", error)
       request.incrementAttempts
       while(client.queueFull) { Thread.sleep(100) }
-      return client.execute(request).data
+      client.execute(request) match {
+        case Some(response) => response.data
+        case None => None
+      }
     }
   }
 
@@ -55,7 +58,10 @@ class S3Response(exchange: S3Exchange) {
     } else {
       log.error("Received %s error response: Retrying\nWith message:", exchange.status, exchange.getResponseContent)
       request.incrementAttempts
-      return client.execute(request).data
+      client.execute(request) match {
+        case Some(response) => response.data
+        case None => None
+      }
     }
   }
 

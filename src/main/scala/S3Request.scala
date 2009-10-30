@@ -59,7 +59,7 @@ abstract class S3Request {
     format.format(Environment.env.currentDate)
   }
 
-  def response(exchange: S3Exchange) = new S3Response(exchange)
+  def response(exchange: S3Exchange) = Some(new S3Response(exchange))
 
   def incrementAttempts = synchronized {
     Environment.env.sleep((500 * java.lang.Math.pow(2,attempts)).toLong)
@@ -104,7 +104,7 @@ class S3List(val client: S3Client, val bucket: String, items: Int,
     )
   }
 
-  override def response(exchange: S3Exchange) = new S3ListResponse(exchange)
+  override def response(exchange: S3Exchange) = Some(new S3ListResponse(exchange))
 }
 
 class S3Delete(val client: S3Client, val bucket: String,
@@ -128,7 +128,7 @@ class S3Put(val client: S3Client, val bucket: String,
   override def contentMd5 =
     new String(Base64.encodeBase64(org.apache.commons.codec.digest.DigestUtils.md5(data)))
 
-  override def response(exchange: S3Exchange) = new S3PutResponse(exchange)
+  override def response(exchange: S3Exchange) = Some(new S3PutResponse(exchange))
 
   // TODO: allow setting Content-Type
   override def canonicalizedAmzHeaders = extraHeaders.

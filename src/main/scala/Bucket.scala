@@ -6,14 +6,14 @@ class Bucket(name: String, client: S3Client) {
 
   def items = {
     val keyIterator = keys.elements
-    val buffer = new scala.collection.mutable.ListBuffer[(String, S3Response)]
+    val buffer = new scala.collection.mutable.ListBuffer[(String, Option[S3Response])]
 
     def fillBuffer = {
       val keys = keyIterator.take(bufferSize).toList
       buffer ++= keys.map { key => (key, get(key)) }
     }
 
-    new Iterator[(String, S3Response)] {
+    new Iterator[(String, Option[S3Response])] {
       def hasNext = { !buffer.isEmpty || keyIterator.hasNext }
 
       def next = {

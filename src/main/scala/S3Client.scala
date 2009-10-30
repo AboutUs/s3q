@@ -60,10 +60,13 @@ class S3Client(val config:S3Config) {
 
   client.start
 
-  def execute(request: S3Request): S3Response = {
+  def execute(request: S3Request): Option[S3Response] = {
     val exchange = new S3Exchange(this, request, activeRequests)
     log.debug("Queuing request... %s slots remaining", activeRequests.remainingCapacity())
-    executeOnQueue(exchange).response
+    executeOnQueue(exchange).response match {
+      case response: S3Response => Some(response)
+      case _ => None
+    }
   }
 
   def execute(request: S3List): S3ListResponse = {
@@ -81,7 +84,7 @@ class S3Client(val config:S3Config) {
         case DiscardPolicy =>
         case AppendPolicy => {
           evicted match {
-            case Some(ex) => ex.response.retry(new Exception)
+            case Some(ex) => ex.response.get.retry(new Exception)
             case None =>
           }
         }
@@ -125,7 +128,7 @@ class S3Exchange(val client: S3Client, val request: S3Request,
     setRequestHeader(key, value)
   }
 
-  lazy val response: S3Response = {
+  lazy val response: Option[S3Response] = {
     request.response(this)
   }
 
@@ -168,8 +171,8 @@ class S3Exchange(val client: S3Client, val request: S3Request,
   override def onResponseComplete {
     future.completeWithResult(this)
     markAsFinished
-    response.verify
-    request.callback(Some(response))
+    response.get.verify
+    request.callback(response)
   }
 
   override def onException(ex: Throwable) {

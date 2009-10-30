@@ -3,80 +3,51 @@ import scala.xml._
 import scala.xml.parsing._
 import Environment._
 
+import scala.collection.jcl.Conversions._
+
 
 case class S3Exception(val status: Int, val response:String) extends Exception {
   override def toString = {"error code " + status + ": " + response}
 }
 
-class S3Response(exchange: S3Exchange) {
+class S3Response(handler: S3RequestHandler) {
   private val log = Environment.env.logger
 
   lazy val whenFinished = {
-    exchange.get
+    handler.whenFinished
   }
 
-  lazy val data = getData
-
-  private def getData: Option[Array[Byte]] = {
-    whenFinished match {
-      case Right(e) => retry(e)
-      case Left(exchange) => handleResponse(exchange)
+  lazy val data = {
+    status match {
+      case 404 => None
+      case _ => Some(whenFinished.getBlockingBody.readBytes)
     }
   }
 
-  def handleResponse(exchange:S3Exchange): Option[Array[Byte]] = {
-    if(!(200 to 299).contains(exchange.status)){
-      if(exchange.status == 404){
-        log.debug("Received 404 response")
-        return None
-      }
-      return retry(exchange)
-    }
-    log.debug("Received %s successful response", exchange.status)
-    Some(exchange.getResponseBytes)
-  }
+  def status = whenFinished.getStatus
 
-  def retry(error:Throwable): Option[Array[Byte]] = {
-    if(!request.isRetriable){
-      log.error("Received Throwable %s: Not Retrying", error)
-      throw(error)
-    } else {
-      log.error("Received Throwable %s: Retrying", error)
-      request.incrementAttempts
-      while(client.queueFull) { Thread.sleep(100) }
-      return client.execute(request).data
-    }
+  lazy val headers = {
+    val resp = whenFinished
+    resp.getHeaderNameSet.
+      foldLeft(Map[String, String]()) {(m, key) => m(key.toLowerCase) = resp.getHeader(key) }
   }
-
-  def retry(exchange:S3Exchange): Option[Array[Byte]] = {
-    if(!request.isRetriable){
-      log.error("Received %s error response: Not Retrying", exchange.status)
-      throw(S3Exception(exchange.status, exchange.getResponseContent))
-    } else {
-      log.error("Received %s error response: Retrying\nWith message:", exchange.status, exchange.getResponseContent)
-      request.incrementAttempts
-      return client.execute(request).data
-    }
-  }
-
-  lazy val headers: scala.collection.Map[String, String] = whenFinished.left.get.responseHeaders
 
   def header(key: String) = headers.get(key.toLowerCase)
 
-  def request: S3Request = exchange.request
+  def request: S3Request = handler.request
 
-  def client: S3Client = exchange.client
+  def client: S3Client = handler.client
 
   def verify = { }
 }
 
-class S3PutResponse(exchange: S3Exchange) extends S3Response(exchange: S3Exchange) {
+class S3PutResponse(handler: S3RequestHandler) extends S3Response(handler: S3RequestHandler) {
   override def verify = {
     data
   }
 }
 
-class S3ListResponse(exchange: S3Exchange) extends S3Response(exchange: S3Exchange) {
+class S3ListResponse(handler: S3RequestHandler) extends S3Response(handler: S3RequestHandler) {
   lazy val doc = { data match {
     case Some(bytes) => XML.loadString(new String(bytes, "UTF-8"))
     case None => null

@@ -1,9 +1,9 @@
 package org.s3q
 
-import com.aboutus.auctors.kernel.reactor.{DefaultCompletableFutureResult, FutureTimeoutException}
+import concurrent.Future
 
 import org.xlightweb.client.HttpClient
-import org.xlightweb.{GetRequest, PutRequest, DeleteRequest, FutureResponseHandler, IHttpResponse}
+import org.xlightweb.{GetRequest, PutRequest, DeleteRequest, IHttpResponse, IHttpResponseHandler}
 
 import java.util.concurrent._
 import net.lag.configgy.Configgy
@@ -127,10 +127,12 @@ class S3Client(val config:S3Config) {
 }
 
 class S3RequestHandler(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3RequestHandler])
-  extends FutureResponseHandler
+  extends IHttpResponseHandler
 {
+  val future = new Future[Either[Exception, IHttpResponse]]
+
   lazy val whenFinished = {
-    get(client.config.timeout, java.util.concurrent.TimeUnit.MILLISECONDS)
+    future.get(client.config.timeout, java.util.concurrent.TimeUnit.MILLISECONDS).right.get
   }
 
   lazy val response = {
@@ -142,15 +144,18 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
   }
 
   override def onException(exception: java.io.IOException) = {
-    super.onException(exception)
-/*    markAsFinished*/
+/*    super.onException(exception)*/
+    markAsFinished
+    future.fulfill(Left(exception))
   }
 
   override def onResponse(httpResponse: IHttpResponse) = {
-    super.onResponse(httpResponse)
-/*    markAsFinished*/
-/*    response.verify*/
-/*    request.callback(response)*/
+    future.fulfill(Right(httpResponse))
+    markAsFinished
+    response.verify
+
+    request.callback(response)
+
   }
 
 }

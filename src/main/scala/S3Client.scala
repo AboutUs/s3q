@@ -3,7 +3,7 @@ package org.s3q
 import com.aboutus.auctors.kernel.reactor.{DefaultCompletableFutureResult, FutureTimeoutException}
 
 import org.xlightweb.client.HttpClient
-import org.xlightweb.{GetRequest, PutRequest, FutureResponseHandler, IHttpResponse}
+import org.xlightweb.{GetRequest, PutRequest, DeleteRequest, FutureResponseHandler, IHttpResponse}
 
 import java.util.concurrent._
 import net.lag.configgy.Configgy
@@ -111,8 +111,9 @@ class S3Client(val config:S3Config) {
 
   def clientRequest(request: S3Request) = {
     val cRequest = request.verb match {
-      case "GET" => new GetRequest(request.url)
-      case "PUT" => { new PutRequest(request.url, "application/text", request.body.get) }
+      case "GET"      => new GetRequest(request.url)
+      case "DELETE"   => new DeleteRequest(request.url)
+      case "PUT"      => new PutRequest(request.url, "application/text", request.body.get)
     }
 
     request.headers.foreach { case (key, value) =>
@@ -140,16 +141,16 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
     activeRequests.remove(this)
   }
 
-/*  override def onException(exception: java.io.IOException) = {
+  override def onException(exception: java.io.IOException) = {
     super.onException(exception)
-    markAsFinished
+/*    markAsFinished*/
   }
 
   override def onResponse(httpResponse: IHttpResponse) = {
     super.onResponse(httpResponse)
-    markAsFinished
-    response.verify
-    request.callback(response)
+/*    markAsFinished*/
+/*    response.verify*/
+/*    request.callback(response)*/
   }
-*/
+
 }

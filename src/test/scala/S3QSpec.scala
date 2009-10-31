@@ -213,7 +213,7 @@ object S3QSpecification extends Specification with Mockito {
     val bucket = new Bucket("test-bucket", client)
     "be successful" in {
       calling {() =>
-        bucket.put("test-item", "some-data".getBytes).data must_== Some(null)
+        bucket.put("test-item", "some-data".getBytes).data
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -226,7 +226,7 @@ object S3QSpecification extends Specification with Mockito {
 
     "take into account arbitrary X-Amz headers when authorizing" in {
       calling {() =>
-        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).data must_== Some(null)
+        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).data
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -240,7 +240,7 @@ object S3QSpecification extends Specification with Mockito {
     "take into account arbitrary X-Amz headers but no other headers when authorizing" in {
       calling {() =>
         bucket.put("test-item", "some-data".getBytes,
-          Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first", "Content-Encoding" -> "gzip")).data must_== Some(null)
+          Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first", "Content-Encoding" -> "gzip")).data
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
@@ -474,7 +474,7 @@ object S3QSpecification extends Specification with Mockito {
     val bucket = new Bucket("test-bucket", client)
     "be successful" in {
       calling {() =>
-        bucket.delete("test-item").data must_== Some(null)
+        bucket.delete("test-item").data
       } withResponse { (request, response) =>
         request.getMethod must_== "DELETE"
         request.getRequestURI must_== "/test-bucket/test-item"

@@ -1,4 +1,4 @@
-import org.specs._
+/*import org.specs._
 import org.mockito._
 import org.mockito.Mockito._
 import org.mockito.Matchers._
@@ -51,7 +51,7 @@ object S3QSpecification extends Specification with Mockito {
   }
 
   Environment.environment = new TestEnvironment
-  Environment.environment.logger.setLevel(net.lag.logging.Logger.OFF)
+  Environment.environment.logger.setLevel(net.lag.logging.Logger.WARNING)
 
   class Recorder {
     def record(path: String) = None
@@ -69,7 +69,7 @@ object S3QSpecification extends Specification with Mockito {
       calling {() =>
         bucket.get("1")
         firstRequestDone.await(1, SECONDS)
-        new String(bucket.get("2").data.get) must_== "expected result"
+        bucket.get("2").response.get.dataString must_== Some("expected result")
         barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
         r.record(request.getRequestURI)
@@ -94,7 +94,7 @@ object S3QSpecification extends Specification with Mockito {
       val r = mock[Recorder]
       calling {() =>
         bucket.get("1")
-        new String(bucket.get("2").data.get) must_== "expected result"
+        bucket.get("2").response.dataString must_== "expected result"
         barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
         r.record(request.getRequestURI)
@@ -565,3 +565,4 @@ object S3QSpecification extends Specification with Mockito {
 
 
 }
+*/

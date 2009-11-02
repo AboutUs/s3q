@@ -7,7 +7,6 @@ import javax.crypto.Mac
 
 import org.apache.commons.codec.binary.Base64
 
-
 abstract class S3Request {
   val MAX_ATTEMPTS = 3
   val client:S3Client
@@ -57,7 +56,7 @@ abstract class S3Request {
     format.format(Environment.env.currentDate)
   }
 
-  def response(handler: S3RequestHandler) = new S3Response(handler)
+/*  def response(handler: S3RequestHandler) = new S3ResponseFuture(handler)*/
 
   def incrementAttempts = synchronized {
     Environment.env.sleep((500 * java.lang.Math.pow(2,attempts)).toLong)
@@ -67,7 +66,7 @@ abstract class S3Request {
   def isRetriable: Boolean =
     synchronized { attempts <= MAX_ATTEMPTS }
 
-  def callback(response: S3Response) = { }
+  def callback(response: Either[Throwable, S3Response]) = { }
 
 }
 
@@ -102,7 +101,7 @@ class S3List(val client: S3Client, val bucket: String, items: Int,
     )
   }
 
-  override def response(handler: S3RequestHandler) = new S3ListResponse(handler)
+/*  override def response(handler: S3RequestHandler) = new S3ListResponse(handler)*/
 }
 
 class S3Delete(val client: S3Client, val bucket: String,
@@ -126,7 +125,7 @@ class S3Put(val client: S3Client, val bucket: String,
   override def contentMd5 =
     new String(Base64.encodeBase64(org.apache.commons.codec.digest.DigestUtils.md5(data)))
 
-  override def response(handler: S3RequestHandler) = new S3PutResponse(handler)
+/*  override def response(handler: S3RequestHandler) = new S3PutResponse(handler)*/
 
   // TODO: allow setting Content-Type
   override def canonicalizedAmzHeaders = extraHeaders.

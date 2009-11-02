@@ -5,6 +5,8 @@ import concurrent.Future
 import org.xlightweb.client.HttpClient
 import org.xlightweb.{GetRequest, PutRequest, DeleteRequest, IHttpResponse, IHttpResponseHandler}
 
+import java.util.concurrent.TimeUnit._
+
 import java.util.concurrent._
 import net.lag.configgy.Configgy
 import net.lag.logging.Logger
@@ -57,38 +59,41 @@ class S3Client(val config:S3Config) {
 
   val client = new HttpClient
 
-  def execute(request: S3Request): S3Response = {
+  def execute(request: S3Request) = {
     val handler = new S3RequestHandler(this, request, activeRequests)
 
     log.debug("Queuing request... %s slots remaining", activeRequests.remainingCapacity())
 
-    executeOnQueue(handler).response
+    executeOnQueue(handler)
   }
 
-  def execute(request: S3List): S3ListResponse = {
-    execute(request.asInstanceOf[S3Request]).asInstanceOf[S3ListResponse]
-  }
+//  def execute(request: S3List): S3ListResponse = {
+//    execute(request.asInstanceOf[S3Request]).asInstanceOf[S3ListResponse]
+//  }
 
   def queueFull = activeRequests.remainingCapacity() == 0
 
-  def executeOnQueue(handler: S3RequestHandler): S3RequestHandler = {
+  def executeOnQueue(handler: S3RequestHandler): S3ResponseFuture = {
+    /* class EvictedError extends Exception
     if (queueFull) {
       val evicted = evictHeadFromQueue
       executeExchange(handler)
+
       config.evictionPolicy match {
         case DiscardPolicy =>
         case AppendPolicy => {
           evicted match {
-            case Some(ex) => // ex.response.retry(new Exception)
+            case Some(handler) => handler.response.retry(new EvictedError)
             case None =>
           }
         }
       }
     } else {
+*/
       executeExchange(handler)
-    }
+/*    }*/
 
-    handler
+    handler.responseFuture
   }
 
   def executeExchange(handler: S3RequestHandler): S3RequestHandler = {
@@ -129,14 +134,18 @@ class S3Client(val config:S3Config) {
 class S3RequestHandler(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3RequestHandler])
   extends IHttpResponseHandler
 {
-  val future = new Future[Either[Exception, IHttpResponse]]
+  val future = new Future[Either[Exception, IHttpResponse]](1, SECONDS)
 
-  lazy val whenFinished = {
-    future.get(client.config.timeout, java.util.concurrent.TimeUnit.MILLISECONDS).right.get
-  }
+  // would be GREAT if scala libs could do this automatically, for arbitrarily nested Eithers.
+  // A function that converts Either[A, Either[A, B]] or Either[A, Either[A, Either[A, B]]] to Either[A, B]
+  // would be ideal.
 
-  lazy val response = {
-    request.response(this)
+  lazy val whenFinished:Either[Exception, IHttpResponse] = future() match {
+    case Right(exOrResponse) => exOrResponse match {
+      case Right(response) => Right(response)
+      case Left(ex) => Left(ex)
+    }
+    case Left(ex) => Left(ex)
   }
 
   def markAsFinished = {
@@ -144,7 +153,6 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
   }
 
   override def onException(exception: java.io.IOException) = {
-/*    super.onException(exception)*/
     markAsFinished
     future.fulfill(Left(exception))
   }
@@ -152,10 +160,12 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
   override def onResponse(httpResponse: IHttpResponse) = {
     future.fulfill(Right(httpResponse))
     markAsFinished
-    response.verify
+    // response.verify
 
-    request.callback(response)
-
+    request.callback(responseFuture.response)
   }
+
+  lazy val responseFuture = new S3ResponseFuture(this)
+
 
 }

@@ -14,6 +14,7 @@ import net.lag.logging.Logger
 abstract case class Eviction() {
   val name: String
 }
+
 case object Eviction {
   implicit def string2eviction(name: String): Eviction = {
     name match {
@@ -140,9 +141,9 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
   // A function that converts Either[A, Either[A, B]] or Either[A, Either[A, Either[A, B]]] to Either[A, B]
   // would be ideal.
 
-  lazy val whenFinished:Either[Exception, IHttpResponse] = future() match {
+  lazy val whenFinished:Either[Exception, HttpResponse] = future() match {
     case Right(exOrResponse) => exOrResponse match {
-      case Right(response) => Right(response)
+      case Right(response) => Right(new HttpResponse(response))
       case Left(ex) => Left(ex)
     }
     case Left(ex) => Left(ex)

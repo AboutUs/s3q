@@ -3,8 +3,6 @@ import scala.xml._
 import scala.xml.parsing._
 import Environment._
 
-import scala.collection.jcl.Conversions._
-
 import org.xlightweb.IHttpResponse
 
 case class S3Exception(val status: Int, val response:String) extends Exception {
@@ -18,10 +16,9 @@ class S3ResponseFuture(handler: S3RequestHandler) {
 
   lazy val response:Either[Throwable, S3Response] = {
     handler.whenFinished match {
-      case Right(response) => response.getStatus match {
-        case s if 200 to 299 contains s => Right(new S3Response(response))
-        case 404 => Right(new S3Response(response))
-        case s => retry(BadResponseCode(s))
+      case Right(response) => response.isOk match {
+        case true => Right(new S3Response(response))
+        case false => retry(BadResponseCode(response.status))
       }
       case Left(ex) => retry(ex)
     }
@@ -48,23 +45,19 @@ class S3ResponseFuture(handler: S3RequestHandler) {
 
 }
 
-class S3Response(response: IHttpResponse) {
+class S3Response(response: HttpResponse) {
 
   lazy val data:Option[Array[Byte]] = {
-    status match {
+    response.status match {
       case 404 => None
-      case _ => Some(response.getBlockingBody.readBytes)
+      case _ => Some(response.body)
     }
   }
 
   lazy val dataString = data.map(new String(_))
 
-  def status = response.getStatus
-
-  lazy val headers = {
-    response.getHeaderNameSet.
-      foldLeft(Map[String, String]()) {(m, key) => m + (key.toLowerCase -> response.getHeader(key)) }
-  }
+  def status = response.status
+  def headers = response.headers
 
   def header(key: String) = headers.get(key.toLowerCase)
 
@@ -72,14 +65,14 @@ class S3Response(response: IHttpResponse) {
 
 }
 
-class S3PutResponse(response: IHttpResponse) extends S3Response(response: IHttpResponse) {
+/*class S3PutResponse(response: IHttpResponse) extends S3Response(response: IHttpResponse) {
   override def verify = {
     data
   }
 }
 
 class S3ListResponse(response: IHttpResponse) extends S3Response(response: IHttpResponse) {
-  lazy val doc = data.map((d: Array[Byte]) => XML.loadString(new String(d, "UTF-8")))
+  lazy val doc = data.map((d) => XML.loadString(new String(d, "UTF-8")))
 
   lazy val items: Seq[String] = {
     (doc.get \\ "Contents" \\ "Key").map { _.text }
@@ -90,3 +83,4 @@ class S3ListResponse(response: IHttpResponse) extends S3Response(response: IHttp
   }
 
 }
+*/

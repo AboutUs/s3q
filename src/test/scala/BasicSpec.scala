@@ -12,14 +12,11 @@ import java.util.concurrent.TimeUnit.SECONDS
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServlet}
 import scala.collection.jcl.Conversions._
 
-object S3QSpecification extends Specification with Mockito {
+object BasicSpecification extends Specification with Mockito {
 
   var responder:Responder = _
 
-/*  val server = server(responder)*/
-/*  server.start*/
   implicit val server = startTestServer
-
 
   val client = new S3Client(new S3Config("foo", "bar", 100, 500, "localhost:8080"))
 

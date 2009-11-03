@@ -31,26 +31,26 @@ case object AppendPolicy extends Eviction {
   override val name = "append"
 }
 
-case class S3Config(
-  val accessKeyId: String, val secretAccessKey: String,
-  val maxConcurrency:Int, val timeout:Int, val hostname:String,
-  val evictionPolicy: Eviction
-) {
-    def this(
-      accessKeyId: String, secretAccessKey: String, maxConcurrency:Int, timeout:Int, hostname:String
-    ) = this(accessKeyId, secretAccessKey, maxConcurrency, timeout, hostname, AppendPolicy)
+case class S3Config(args: (Symbol, Any)*) {
 
-    def this(
-      accessKeyId: String, secretAccessKey: String, maxConcurrency:Int, timeout:Int
-    ) = this(accessKeyId, secretAccessKey, maxConcurrency, timeout, "s3.amazonaws.com")
+    val defaults = Map(
+      'maxConcurrency -> 500,
+      'timeout -> 6000L,
+      'hostname -> "s3.amazonaws.com",
+      'evictionPolicy -> AppendPolicy,
+      'retry -> false)
 
-    def this(
-      accessKeyId: String, secretAccessKey: String, maxConcurrency:Int
-    ) = this(accessKeyId, secretAccessKey, maxConcurrency, 6000)
+    val config = args.foldLeft(defaults) { case (m, (k, v)) =>
+      m + (k -> v)
+    }
 
-    def this(accessKeyId: String, secretAccessKey: String) =
-      this(accessKeyId, secretAccessKey, 500)
-
+    val accessKeyId = config('accessKeyId).asInstanceOf[String]
+    val secretAccessKey = config('secretAccessKey).asInstanceOf[String]
+    val maxConcurrency = config('maxConcurrency).asInstanceOf[Int]
+    val timeout = config('timeout).asInstanceOf[Long]
+    val hostname = config('hostname).asInstanceOf[String]
+    val evictionPolicy = config('evictionPolicy).asInstanceOf[Eviction]
+    val retry = config('retry).asInstanceOf[Boolean]
 }
 
 class S3Client(val config:S3Config) {

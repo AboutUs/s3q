@@ -17,18 +17,16 @@ class S3ResponseFuture(handler: S3RequestHandler) {
   private val log = Environment.env.logger
 
   lazy val response:Either[Throwable, S3Response] = {
-    println("calling response once.")
     handler.whenFinished match {
       case Right(response) => response.isOk match {
         case true => Right(handler.request.response(response))
-        case false => retry(BadResponseCode(response.status))
+        case false => Left(BadResponseCode(response.status))
       }
-      case Left(ex) => retry(ex)
+      case Left(ex) => Left(ex)
     }
   }
 
   def retry(error:Throwable) = {
-    println("======retrying:" + request.isRetriable)
     request.isRetriable match {
       case false => {
         log.error("Received Throwable %s: Not Retrying", error)

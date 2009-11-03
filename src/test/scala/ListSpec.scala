@@ -17,7 +17,11 @@ object ListSpecification extends Specification with Mockito {
 
   doAfterSpec { server.stop }
 
-  val client = new S3Client(new S3Config("foo", "bar", 100, 500, "localhost:8080"))
+  val client = new S3Client(
+    new S3Config('accessKeyId -> "foo",
+                 'secretAccessKey -> "bar",
+                 'hostname -> "localhost:8080",
+                 'timeout -> 100L))
 
   Environment.environment = new TestEnvironment
   Environment.environment.logger.setLevel(net.lag.logging.Logger.WARNING)

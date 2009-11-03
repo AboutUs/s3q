@@ -130,7 +130,7 @@ class S3Client(val config:S3Config) {
 class S3RequestHandler(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3RequestHandler])
   extends IHttpResponseHandler
 {
-  val future = new Future[Either[Exception, IHttpResponse]](1, SECONDS)
+  val future = new Future[Either[Exception, IHttpResponse]](client.config.timeout, MILLISECONDS)
 
   // would be GREAT if scala libs could do this automatically, for arbitrarily nested Eithers.
   // A function that converts Either[A, Either[A, B]] or Either[A, Either[A, Either[A, B]]] to Either[A, B]

@@ -36,7 +36,6 @@ class S3ResponseFuture(handler: S3RequestHandler) {
         log.error("Received Throwable %s: Retrying", error)
         request.incrementAttempts
         val r = client.execute(request).response
-        println("retried")
 
         r
       }

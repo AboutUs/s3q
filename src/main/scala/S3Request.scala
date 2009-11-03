@@ -56,7 +56,7 @@ abstract class S3Request {
     format.format(Environment.env.currentDate)
   }
 
-/*  def response(handler: S3RequestHandler) = new S3ResponseFuture(handler)*/
+  def response(response: HttpResponse) = new S3Response(response)
 
   def incrementAttempts = synchronized {
     Environment.env.sleep((500 * java.lang.Math.pow(2,attempts)).toLong)
@@ -101,7 +101,7 @@ class S3List(val client: S3Client, val bucket: String, items: Int,
     )
   }
 
-/*  override def response(handler: S3RequestHandler) = new S3ListResponse(handler)*/
+  override def response(response: HttpResponse) = new S3ListResponse(response)
 }
 
 class S3Delete(val client: S3Client, val bucket: String,

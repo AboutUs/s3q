@@ -17,7 +17,7 @@ class S3ResponseFuture(handler: S3RequestHandler) {
   lazy val response:Either[Throwable, S3Response] = {
     handler.whenFinished match {
       case Right(response) => response.isOk match {
-        case true => Right(new S3Response(response))
+        case true => Right(handler.request.response(response))
         case false => retry(BadResponseCode(response.status))
       }
       case Left(ex) => retry(ex)
@@ -65,13 +65,13 @@ class S3Response(response: HttpResponse) {
 
 }
 
-/*class S3PutResponse(response: IHttpResponse) extends S3Response(response: IHttpResponse) {
+class S3PutResponse(response: HttpResponse) extends S3Response(response: HttpResponse) {
   override def verify = {
     data
   }
 }
 
-class S3ListResponse(response: IHttpResponse) extends S3Response(response: IHttpResponse) {
+class S3ListResponse(response: HttpResponse) extends S3Response(response: HttpResponse) {
   lazy val doc = data.map((d) => XML.loadString(new String(d, "UTF-8")))
 
   lazy val items: Seq[String] = {
@@ -83,4 +83,3 @@ class S3ListResponse(response: IHttpResponse) extends S3Response(response: IHttp
   }
 
 }
-*/

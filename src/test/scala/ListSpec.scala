@@ -8,7 +8,19 @@ import org.s3q._
 import org.s3q.specs._
 import org.s3q.specs.Common._
 
-/*object ListSpecification extends Specification with Mockito {
+
+object ListSpecification extends Specification with Mockito {
+
+  var responder:Responder = _
+
+  implicit val server = startTestServer
+
+  doAfterSpec { server.stop }
+
+  val client = new S3Client(new S3Config("foo", "bar", 100, 500, "localhost:8080"))
+
+  Environment.environment = new TestEnvironment
+  Environment.environment.logger.setLevel(net.lag.logging.Logger.WARNING)
 
   "A list request" should {
     val bucket = new Bucket("test-bucket", client)
@@ -165,4 +177,4 @@ import org.s3q.specs.Common._
     }
 
   }
-}*/
+}

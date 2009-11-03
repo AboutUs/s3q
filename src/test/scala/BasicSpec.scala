@@ -18,6 +18,8 @@ object BasicSpecification extends Specification with Mockito {
 
   implicit val server = startTestServer
 
+  doAfterSpec { server.stop }
+
   val client = new S3Client(new S3Config("foo", "bar", 100, 500, "localhost:8080"))
 
   Environment.environment = new TestEnvironment
@@ -64,7 +66,6 @@ object BasicSpecification extends Specification with Mockito {
         request.getHeader("Authorization") must_== "AWS foo:p5KyJTeu/8EYmQqnhOJvz9zS4T4="
         request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
         response.getWriter.print("expected result")
-        response.getWriter.flush
       } call
     }
 
@@ -85,7 +86,6 @@ object BasicSpecification extends Specification with Mockito {
         })
       } withResponse { (request, response) =>
         response.getWriter.print("expected result")
-        response.getWriter.flush
       } call
 
       responseReceived.await(1, SECONDS)

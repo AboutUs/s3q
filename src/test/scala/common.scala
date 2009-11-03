@@ -12,6 +12,7 @@ class TestServer {
 
     def handle(target: String, request: HttpServletRequest, response: HttpServletResponse, dispatch: Int) = {
       responder(request, response)
+      response.getWriter.flush
     }
 
   }
@@ -19,7 +20,8 @@ class TestServer {
   val server = new org.mortbay.jetty.Server(8080)
   server.setHandler(new Handler)
 
-  server
+  def start = server.start
+  def stop = server.stop
 }
 
 
@@ -41,7 +43,7 @@ object Common {
   def startTestServer = {
     val testServer = new TestServer
 
-    testServer.server.start
+    testServer.start
 
     testServer
   }

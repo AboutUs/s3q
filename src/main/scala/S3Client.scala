@@ -68,10 +68,6 @@ class S3Client(val config:S3Config) {
     executeOnQueue(handler)
   }
 
-//  def execute(request: S3List): S3ListResponse = {
-//    execute(request.asInstanceOf[S3Request]).asInstanceOf[S3ListResponse]
-//  }
-
   def queueFull = activeRequests.remainingCapacity() == 0
 
   def executeOnQueue(handler: S3RequestHandler): S3ResponseFuture = {
@@ -93,7 +89,6 @@ class S3Client(val config:S3Config) {
 */
       executeExchange(handler)
 /*    }*/
-
     handler.responseFuture
   }
 

@@ -9,12 +9,15 @@ case class S3Exception(val status: Int, val response:String) extends Exception {
   override def toString = {"error code " + status + ": " + response}
 }
 
+case class BadResponseCode(code: Int) extends Exception {
+  override def toString = "BadResponseCode:" + code
+}
+
 class S3ResponseFuture(handler: S3RequestHandler) {
   private val log = Environment.env.logger
 
-  case class BadResponseCode(code: Int) extends Exception
-
   lazy val response:Either[Throwable, S3Response] = {
+    println("calling response once.")
     handler.whenFinished match {
       case Right(response) => response.isOk match {
         case true => Right(handler.request.response(response))
@@ -25,18 +28,21 @@ class S3ResponseFuture(handler: S3RequestHandler) {
   }
 
   def retry(error:Throwable) = {
-    throw(error)
-//    request.isRetriable match {
-//     case false => {
-//       log.error("Received Throwable %s: Not Retrying", error)
-//       Left(error)
-//     }
-//     case true => {
-//       log.error("Received Throwable %s: Retrying", error)
-//       request.incrementAttempts
-//       client.execute(request).response
-//     }
-//   }
+    println("======retrying:" + request.isRetriable)
+    request.isRetriable match {
+      case false => {
+        log.error("Received Throwable %s: Not Retrying", error)
+        Left(error)
+      }
+      case true => {
+        log.error("Received Throwable %s: Retrying", error)
+        request.incrementAttempts
+        val r = client.execute(request).response
+        println("retried")
+
+        r
+      }
+    }
   }
 
   val request = handler.request

@@ -9,8 +9,9 @@ case class S3Exception(val status: Int, val response:String) extends Exception {
   override def toString = {"error code " + status + ": " + response}
 }
 
-case class BadResponseCode(code: Int) extends Exception {
-  override def toString = "BadResponseCode:" + code
+case class BadResponseCode(val code: Int, val response: String) extends Exception {
+  def this(code: Int) = this(code, "")
+  override def toString = "BadResponseCode:" + code + "\nResponse:\n" + response
 }
 
 class S3ResponseFuture(handler: S3RequestHandler) {
@@ -20,7 +21,7 @@ class S3ResponseFuture(handler: S3RequestHandler) {
     handler.whenFinished match {
       case Right(response) => response.isOk match {
         case true => Right(handler.request.response(response))
-        case false => Left(BadResponseCode(response.status))
+        case false => Left(BadResponseCode(response.status, response.bodyString))
       }
       case Left(ex) => Left(ex)
     }

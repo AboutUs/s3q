@@ -108,6 +108,7 @@ object BasicSpecification extends Specification with Mockito {
         request.getHeader("Authorization") must_== "AWS foo:79H1wpxHvrH5mJfoMi33hgzYupc="
         request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
         request.getHeader("Content-MD5") must_== "MVaNlMH/BQXRc8prXMPPSQ=="
+        request.getHeader("Content-Type") must_== ""
         response.setStatus(200)
       } call
     }

@@ -114,7 +114,7 @@ class S3Client(val config:S3Config) {
     val cRequest = request.verb match {
       case "GET"      => new GetRequest(request.url)
       case "DELETE"   => new DeleteRequest(request.url)
-      case "PUT"      => new PutRequest(request.url, "application/text", request.body.get)
+      case "PUT"      => new PutRequest(request.url, request.contentType, request.body.get)
     }
 
     request.headers.foreach { case (key, value) =>

@@ -5,7 +5,7 @@ import scala.collection.jcl.Conversions._
 class HttpResponse(val response: org.xlightweb.IHttpResponse) {
   lazy val status = response.getStatus
   lazy val body = response.getBlockingBody.readBytes
-  lazy val bodyString = body.toString
+  lazy val bodyString = new String(body)
 
   lazy val isOk = status match {
     case s if (200 to 299) contains s => true

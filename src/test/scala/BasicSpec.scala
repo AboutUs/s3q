@@ -24,7 +24,7 @@ object BasicSpecification extends Specification with Mockito {
     new S3Config('accessKeyId -> "foo",
                  'secretAccessKey -> "bar",
                  'hostname -> "localhost:8080",
-                 'timeout -> 100L))
+                 'timeout -> 500L))
 
   Environment.environment = new TestEnvironment
   Environment.environment.logger.setLevel(net.lag.logging.Logger.WARNING)
@@ -34,16 +34,16 @@ object BasicSpecification extends Specification with Mockito {
 
     "should return a specified header" in {
       calling {() =>
-        bucket.get("test-item").response.right.get.header("x-amz-foo") must_== Some("bar")
+        bucket.get("test-item").response.right.get.header("x-amz-meta-foo") must_== Some("bar")
       } withResponse { (request, response) =>
-        response.setHeader("X-Amz-Foo", "bar")
+        response.setHeader("X-Amz-Meta-Foo", "bar")
         response.getWriter.print("expected result")
       } call
     }
 
     "should return None when header does not exist" in {
       calling {() =>
-        bucket.get("test-item").response.right.get.header("x-amz-not-here") must beNone
+        bucket.get("test-item").response.right.get.header("x-amz-meta-not-here") must beNone
       } withResponse { (request, response) =>
         response.getWriter.print("expected result")
       } call
@@ -52,11 +52,11 @@ object BasicSpecification extends Specification with Mockito {
     "should return all headers" in {
       calling {() =>
         val headers = bucket.get("test-item").response.right.get.headers
-        headers must haveKey("x-amz-foo")
-        headers must haveKey("x-amz-spam")
+        headers must haveKey("x-amz-meta-foo")
+        headers must haveKey("x-amz-meta-spam")
       } withResponse { (request, response) =>
-        response.setHeader("X-Amz-Foo", "bar")
-        response.setHeader("X-Amz-Spam", "eggs")
+        response.setHeader("X-Amz-Meta-Foo", "bar")
+        response.setHeader("X-Amz-Meta-Spam", "eggs")
         response.getWriter.print("expected result")
       } call
     }
@@ -113,27 +113,27 @@ object BasicSpecification extends Specification with Mockito {
       } call
     }
 
-    "take into account arbitrary X-Amz headers when authorizing" in {
+    "take into account arbitrary X-Amz-Meta headers when authorizing" in {
       calling {() =>
-        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first")).response
+        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Meta-Boo-Foo-Woo" -> "rulz", "X-Amz-Meta-AAAAA" -> "first")).response
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
-        request.getHeader("Authorization") must_== "AWS foo:ckj5nL5TK1pLAinJG/hvEQXyrcI="
+        request.getHeader("Authorization") must_== "AWS foo:tlFkUTFDjj1/Q6g0ib28p0low8g="
         request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
         request.getHeader("Content-MD5") must_== "MVaNlMH/BQXRc8prXMPPSQ=="
         response.setStatus(200)
       } call
     }
 
-    "take into account arbitrary X-Amz headers but no other headers when authorizing" in {
+    "take into account arbitrary X-Amz-Meta headers but no other headers when authorizing" in {
       calling {() =>
         bucket.put("test-item", "some-data".getBytes,
-          Map("X-Amz-Boo-Foo-Woo" -> "rulz", "X-Amz-AAAAA" -> "first", "Content-Encoding" -> "gzip")).response
+          Map("X-Amz-Meta-Boo-Foo-Woo" -> "rulz", "X-Amz-Meta-AAAAA" -> "first", "Content-Encoding" -> "gzip")).response
       } withResponse { (request, response) =>
         request.getMethod must_== "PUT"
         request.getRequestURI must_== "/test-bucket/test-item"
-        request.getHeader("Authorization") must_== "AWS foo:ckj5nL5TK1pLAinJG/hvEQXyrcI="
+        request.getHeader("Authorization") must_== "AWS foo:tlFkUTFDjj1/Q6g0ib28p0low8g="
         request.getHeader("Date") must_== "Mon, 21 Sep 2009 23:45:58 GMT"
         request.getHeader("Content-MD5") must_== "MVaNlMH/BQXRc8prXMPPSQ=="
         response.setStatus(200)
@@ -150,9 +150,9 @@ object BasicSpecification extends Specification with Mockito {
 
     "allow headers to be set" in {
       calling{() =>
-        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Foo" -> "bar")).response
+        bucket.put("test-item", "some-data".getBytes, Map("X-Amz-Meta-Foo" -> "bar")).response
       } withResponse { (request, response) =>
-        request.getHeader("X-Amz-Foo") must_== "bar"
+        request.getHeader("X-Amz-Meta-Foo") must_== "bar"
       } call
     }
 

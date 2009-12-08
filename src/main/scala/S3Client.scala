@@ -53,6 +53,12 @@ case class S3Config(args: (Symbol, Any)*) {
     val retry = config('retry).asInstanceOf[Boolean]
 }
 
+object Types {
+  type ResponseFuture = Future[Either[Exception, HttpResponse]]
+  type ResponseCallback = (Either[Exception, HttpResponse]) => Unit
+}
+
+
 class S3Client(val config:S3Config) {
   private val log = Logger.get
 
@@ -60,8 +66,20 @@ class S3Client(val config:S3Config) {
 
   val client = new HttpClient
 
-  def execute(request: S3Request) = {
-    val handler = new S3RequestHandler(this, request, activeRequests)
+  val MAX_ATTEMPTS = 3
+
+  def execute(request: S3Request): S3ResponseFuture = {
+    val future = new Types.ResponseFuture(config.timeout, MILLISECONDS)
+
+    execute(request, MAX_ATTEMPTS, {(response) =>
+      future.fulfill(response)
+    })
+
+    new S3ResponseFuture(request, this, future)
+  }
+
+  def execute(request: S3Request, attemptsLeft: Int, callback:Types.ResponseCallback):Unit = {
+    val handler = new S3RequestHandler(this, request, activeRequests, attemptsLeft, callback)
 
     log.debug("Queuing request... %s slots remaining", activeRequests.remainingCapacity())
 
@@ -70,26 +88,8 @@ class S3Client(val config:S3Config) {
 
   def queueFull = activeRequests.remainingCapacity() == 0
 
-  def executeOnQueue(handler: S3RequestHandler): S3ResponseFuture = {
-    /* class EvictedError extends Exception
-    if (queueFull) {
-      val evicted = evictHeadFromQueue
-      executeExchange(handler)
-
-      config.evictionPolicy match {
-        case DiscardPolicy =>
-        case AppendPolicy => {
-          evicted match {
-            case Some(handler) => handler.response.retry(new EvictedError)
-            case None =>
-          }
-        }
-      }
-    } else {
-*/
-      executeExchange(handler)
-/*    }*/
-    handler.responseFuture
+  def executeOnQueue(handler: S3RequestHandler) {
+    executeExchange(handler)
   }
 
   def executeExchange(handler: S3RequestHandler): S3RequestHandler = {
@@ -127,22 +127,15 @@ class S3Client(val config:S3Config) {
 
 }
 
-class S3RequestHandler(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3RequestHandler])
+class S3RequestHandler(val client: S3Client, val request: S3Request, activeRequests: BlockingQueue[S3RequestHandler], val attemptsLeft:Int,
+  val callback:Types.ResponseCallback)
   extends IHttpResponseHandler
 {
-  val future = new Future[Either[Exception, IHttpResponse]](client.config.timeout, MILLISECONDS)
+/*  val future = new ResponseFuture(client.config.timeout, MILLISECONDS)*/
 
   // would be GREAT if scala libs could do this automatically, for arbitrarily nested Eithers.
   // A function that converts Either[A, Either[A, B]] or Either[A, Either[A, Either[A, B]]] to Either[A, B]
   // would be ideal.
-
-  lazy val whenFinished:Either[Exception, HttpResponse] = future() match {
-    case Right(exOrResponse) => exOrResponse match {
-      case Right(response) => Right(new HttpResponse(response))
-      case Left(ex) => Left(ex)
-    }
-    case Left(ex) => Left(ex)
-  }
 
   def markAsFinished = {
     activeRequests.remove(this)
@@ -150,18 +143,31 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
 
   override def onException(exception: java.io.IOException) = {
     markAsFinished
-    future.fulfill(Left(exception))
+    maybeRetry(Left(exception))
+    callback(Left(exception))
   }
 
   override def onResponse(httpResponse: IHttpResponse) = {
-    future.fulfill(Right(httpResponse))
     markAsFinished
-    // response.verify
+    val response = new HttpResponse(httpResponse)
 
-    request.callback(responseFuture.response)
+    response.isOk match {
+      case true => {
+        callback(Right(response))
+/*        request.callback(Right(response))*/
+      }
+      case false => {
+        maybeRetry(Right(response))
+      }
+    }
+
   }
 
-  lazy val responseFuture = new S3ResponseFuture(this)
-
+  def maybeRetry(value: Either[Exception, HttpResponse]) = {
+    attemptsLeft match {
+      case 0 => callback(value)
+      case _ => client.execute(request, attemptsLeft - 1, callback)
+    }
+  }
 
 }

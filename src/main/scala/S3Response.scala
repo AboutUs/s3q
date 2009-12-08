@@ -1,4 +1,5 @@
 package org.s3q
+
 import scala.xml._
 import scala.xml.parsing._
 import Environment._
@@ -14,18 +15,29 @@ case class BadResponseCode(val code: Int, val response: String) extends Exceptio
   override def toString = "BadResponseCode:" + code + "\nResponse:\n" + response
 }
 
-class S3ResponseFuture(handler: S3RequestHandler) {
+
+
+class S3ResponseFuture(val request: S3Request, val client:S3Client, future: Types.ResponseFuture) {
   private val log = Environment.env.logger
 
   lazy val response:Either[Throwable, S3Response] = {
-    handler.whenFinished match {
+    whenFinished match {
       case Right(response) => response.isOk match {
-        case true => Right(handler.request.response(response))
+        case true => Right(request.response(response))
         case false => Left(BadResponseCode(response.status, response.bodyString))
       }
       case Left(ex) => Left(ex)
     }
   }
+
+  lazy val whenFinished:Either[Exception, HttpResponse] = future() match {
+    case Right(exOrResponse) => exOrResponse match {
+      case Right(response) => Right(response)
+      case Left(ex) => Left(ex)
+    }
+    case Left(ex) => Left(ex)
+  }
+
 
   def retry(error:Throwable) = {
     request.isRetriable match {
@@ -42,10 +54,6 @@ class S3ResponseFuture(handler: S3RequestHandler) {
       }
     }
   }
-
-  val request = handler.request
-
-  val client = handler.client
 
 }
 
@@ -65,14 +73,9 @@ class S3Response(response: HttpResponse) {
 
   def header(key: String) = headers.get(key.toLowerCase)
 
-  def verify = { }
-
 }
 
 class S3PutResponse(response: HttpResponse) extends S3Response(response: HttpResponse) {
-  override def verify = {
-    data
-  }
 }
 
 class S3ListResponse(response: HttpResponse) extends S3Response(response: HttpResponse) {

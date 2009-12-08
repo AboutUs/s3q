@@ -54,6 +54,10 @@ object Common {
     new ClientExpectation(requestBlock, server)
   }
 
+  case object TooManyRequestsException extends Exception {
+    override def toString = "Server was issued more requests than expected"
+  }
+
   case class ClientExpectation(requestBlock:() => Unit, server: TestServer) {
     var responderCaught:Option[Exception] = None
     val responders:scala.collection.mutable.Queue[Responder] = new scala.collection.mutable.Queue
@@ -69,6 +73,7 @@ object Common {
           val expectationBlock = responders.dequeue
           expectationBlock(request, response)
         } catch {
+          case e:java.util.NoSuchElementException => responderCaught = Some(TooManyRequestsException)
           case e:Exception => responderCaught = Some(e)
         }
       }

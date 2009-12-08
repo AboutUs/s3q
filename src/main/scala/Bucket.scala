@@ -60,7 +60,10 @@ class Bucket(name: String, client: S3Client) {
 
   def get(key: String, withCallback: (Either[Throwable, S3Response]) => Unit) = {
     client.execute(new S3Get(client, name, key) {
-      override def callback(request: Either[Throwable, S3Response]) = withCallback(request)
+      override def callback(request: Either[Throwable, S3Response]) = {
+        super.callback(request)
+        withCallback(request)
+      }
     })
   }
 

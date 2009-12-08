@@ -1,4 +1,4 @@
-/*import org.specs._
+import org.specs._
 import org.mockito._
 import org.mockito.Mockito._
 import org.mockito.Matchers._
@@ -22,13 +22,18 @@ object RecoverySpecification extends Specification with Mockito {
   val client = new S3Client(
     new S3Config('accessKeyId -> "foo",
                  'secretAccessKey -> "bar",
-                 'hostname -> "localhost:8080"
+                 'hostname -> "localhost:8080"))
 
   Environment.environment = new TestEnvironment
   Environment.environment.logger.setLevel(net.lag.logging.Logger.WARNING)
 
   "With a full queue using discard policy" should {
-    val singleThreadClient = new S3Client(new S3Config("foo", "bar", 1, 500, "localhost:8080", "discard"))
+    val singleThreadClient = new S3Client(
+      new S3Config('accessKeyId -> "foo",
+                   'secretAccessKey -> "bar",
+                   'hostname -> "localhost:8080",
+                   'evictionPolicy -> DiscardPolicy))
+
     val bucket = new Bucket("test-bucket", singleThreadClient)
     val barrier = new java.util.concurrent.CyclicBarrier(2)
 
@@ -56,7 +61,11 @@ object RecoverySpecification extends Specification with Mockito {
   }
 
   "With a full queue using append policy" should {
-    val singleThreadClient = new S3Client(new S3Config("foo", "bar", 1, 500, "localhost:8080", "append"))
+    val singleThreadClient = new S3Client(
+      new S3Config('accessKeyId -> "foo",
+                   'secretAccessKey -> "bar",
+                   'hostname -> "localhost:8080",
+                   'evictionPolicy -> AppendPolicy))
     val bucket = new Bucket("test-bucket", singleThreadClient)
     val barrier = new java.util.concurrent.CyclicBarrier(2)
 
@@ -64,7 +73,7 @@ object RecoverySpecification extends Specification with Mockito {
       val r = mock[Recorder]
       calling {() =>
         bucket.get("1")
-        bucket.get("2").response.right.get.dataString must_== "expected result"
+        bucket.get("2").response.right.get.dataString must_== Some("expected result")
         barrier.await(1, SECONDS)
       } withResponse {(request, response) =>
         r.record(request.getRequestURI)
@@ -89,7 +98,10 @@ object RecoverySpecification extends Specification with Mockito {
 
     "should retry 3 times when a 503 is received" in {
       calling {() =>
-        bucket.get("test-item").response.right.get.dataString must_== Some("expected result")
+        bucket.get("test-item").response match {
+          case Right(response) => response.dataString must_== Some("expected result")
+          case Left(failure) => fail(failure.toString)
+        }
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -110,7 +122,7 @@ object RecoverySpecification extends Specification with Mockito {
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>
-        bucket.get("test-item").response must_== Left(BadResponseCode(503))
+        bucket.get("test-item").response must_== Left(BadResponseCode(503, ""))
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -147,7 +159,7 @@ object RecoverySpecification extends Specification with Mockito {
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>
-        bucket.put("test-item", "some-data".getBytes).response must_== Left(BadResponseCode(503))
+        bucket.put("test-item", "some-data".getBytes).response must_== Left(BadResponseCode(503, ""))
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -198,7 +210,7 @@ object RecoverySpecification extends Specification with Mockito {
 
     "should throw an error if more than 3 503s are received" in {
       calling {() =>
-        bucket.delete("test-item").response must_== Left(BadResponseCode(503))
+        bucket.delete("test-item").response must_== Left(BadResponseCode(503, ""))
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -213,4 +225,3 @@ object RecoverySpecification extends Specification with Mockito {
   }
 
 }
-*/

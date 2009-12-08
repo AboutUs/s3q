@@ -54,7 +54,7 @@ case class S3Config(args: (Symbol, Any)*) {
 }
 
 object Types {
-  type ResponseFuture = Future[Either[Exception, HttpResponse]]
+  type ResponseFuture = Future[Either[Exception, S3Response]]
   type ResponseCallback = (Either[Exception, HttpResponse]) => Unit
 }
 
@@ -71,12 +71,23 @@ class S3Client(val config:S3Config) {
   def execute(request: S3Request): S3ResponseFuture = {
     val future = new Types.ResponseFuture(config.timeout, MILLISECONDS)
 
-    execute(request, MAX_ATTEMPTS, {(response) =>
+    execute(request, MAX_ATTEMPTS, {(httpResponse) =>
+      val response = process(request, httpResponse)
       future.fulfill(response)
+      request.callback(response)
     })
 
     new S3ResponseFuture(request, this, future)
   }
+
+  def process(request: S3Request, response: Either[Exception, HttpResponse]) = response match {
+    case Right(response) => response.isOk match {
+      case true => Right(request.response(response))
+      case false => Left(BadResponseCode(response.status, response.bodyString))
+    }
+    case Left(ex) => Left(ex)
+  }
+
 
   def execute(request: S3Request, attemptsLeft: Int, callback:Types.ResponseCallback):Unit = {
     val handler = new S3RequestHandler(this, request, activeRequests, attemptsLeft, callback)
@@ -131,11 +142,6 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
   val callback:Types.ResponseCallback)
   extends IHttpResponseHandler
 {
-/*  val future = new ResponseFuture(client.config.timeout, MILLISECONDS)*/
-
-  // would be GREAT if scala libs could do this automatically, for arbitrarily nested Eithers.
-  // A function that converts Either[A, Either[A, B]] or Either[A, Either[A, Either[A, B]]] to Either[A, B]
-  // would be ideal.
 
   def markAsFinished = {
     activeRequests.remove(this)
@@ -154,7 +160,6 @@ class S3RequestHandler(val client: S3Client, val request: S3Request, activeReque
     response.isOk match {
       case true => {
         callback(Right(response))
-/*        request.callback(Right(response))*/
       }
       case false => {
         maybeRetry(Right(response))

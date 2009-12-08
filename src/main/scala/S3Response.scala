@@ -20,39 +20,9 @@ case class BadResponseCode(val code: Int, val response: String) extends Exceptio
 class S3ResponseFuture(val request: S3Request, val client:S3Client, future: Types.ResponseFuture) {
   private val log = Environment.env.logger
 
-  lazy val response:Either[Throwable, S3Response] = {
-    whenFinished match {
-      case Right(response) => response.isOk match {
-        case true => Right(request.response(response))
-        case false => Left(BadResponseCode(response.status, response.bodyString))
-      }
-      case Left(ex) => Left(ex)
-    }
-  }
-
-  lazy val whenFinished:Either[Exception, HttpResponse] = future() match {
-    case Right(exOrResponse) => exOrResponse match {
-      case Right(response) => Right(response)
-      case Left(ex) => Left(ex)
-    }
-    case Left(ex) => Left(ex)
-  }
-
-
-  def retry(error:Throwable) = {
-    request.isRetriable match {
-      case false => {
-        log.error("Received Throwable %s: Not Retrying", error)
-        Left(error)
-      }
-      case true => {
-        log.error("Received Throwable %s: Retrying", error)
-        request.incrementAttempts
-        val r = client.execute(request).response
-
-        r
-      }
-    }
+  lazy val response = future() match {
+    case Right(responseOrFailure) => responseOrFailure
+    case Left(timeout) => Left(timeout)
   }
 
 }

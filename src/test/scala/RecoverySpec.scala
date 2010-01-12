@@ -139,11 +139,13 @@ object RecoverySpecification extends Specification with Mockito {
   "A PUT Request" should {
     val bucket = new Bucket("test-bucket", client)
 
-    "should retry 3 times when a 503 is received, even before #data is called" in {
+    "should retry 3 times when a 503 is received, even before #response is called" in {
       val barrier = new java.util.concurrent.CyclicBarrier(2)
-      var response:S3Response = null
+
       calling {() =>
-        response = bucket.put("test-item", "some-data".getBytes).response.right.get
+        val request = bucket.put("test-item", "some-data".getBytes)
+        barrier.await(1, SECONDS)
+        new String(request.response.right.get.data.get) must_== "expected result"
       } withResponse { (request, response) =>
         response.setStatus(503)
       } withResponse { (request, response) =>
@@ -153,8 +155,6 @@ object RecoverySpecification extends Specification with Mockito {
         barrier.await(1, SECONDS)
       } call
 
-      barrier.await(1, SECONDS)
-      new String(response.data.get) must_== "expected result"
     }
 
     "should throw an error if more than 3 503s are received" in {
@@ -174,14 +174,16 @@ object RecoverySpecification extends Specification with Mockito {
     "should retry three times if it receives a timeout" in {
       calling {() =>
         println("calling")
-        val o = bucket.put("test-item", "some-data".getBytes).response.right.get
+        val o = bucket.put("test-item", "some-data".getBytes)
+        println(o.response)
+        val r = o.response.right.get
         println("called")
-        o.dataString must_== Some("expected result")
+        r.dataString must_== Some("expected result")
       } withResponse { (request, response) =>
         println("first")
         Thread sleep 600
       } withResponse { (request, response) =>
-              println("second")
+        println("second")
         Thread sleep 600
       } withResponse { (request, response) =>
         println("third")

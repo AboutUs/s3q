@@ -78,17 +78,10 @@ object Common {
         }
       }
 
-
-      try {
-        requestBlock()
-      } catch {
-        case e:Exception => {
-          raiseIfResponderCaught
-          throw e
-        }
-      }
-
       raiseIfResponderCaught
+
+      requestBlock()
+
     }
 
     def raiseIfResponderCaught {

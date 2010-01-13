@@ -4,8 +4,8 @@ class Bucket(name: String, client: S3Client) {
   val bufferSize = 501
   val refillWhen = bufferSize / 2
 
-  def items = {
-    val keyIterator = keys.elements
+  def items(firstKey: Option[String]) = {
+    val keyIterator = keys(firstKey).elements
     val buffer = new scala.collection.mutable.ListBuffer[(String, S3Response)]
 
     def fillBuffer = {
@@ -22,6 +22,10 @@ class Bucket(name: String, client: S3Client) {
       }
     }
   }
+
+  def items(firstKey: String):Iterator[(String, S3Response)] = items(Some(firstKey))
+
+  def items:Iterator[(String, S3Response)] = items(None)
 
   private def keyStreams(first_key: Option[String]) = {
     val MAX_BATCH = 1000
@@ -42,12 +46,12 @@ class Bucket(name: String, client: S3Client) {
     }
   }
 
-  def keys:Iterable[String] = {
-    Stream.concat(keyStreams(None).map(_.toStream))
-  }
+  def keys:Iterable[String] = keys(None)
 
-  def keys(marker: String):Iterable[String] = {
-    Stream.concat(keyStreams(Some(marker)).map(_.toStream))
+  def keys(marker: String):Iterable[String] = keys(Some(marker))
+
+  def keys(marker: Option[String]) = {
+    Stream.concat(keyStreams(marker).map(_.toStream))
   }
 
   def get(key: String) = {
